@@ -772,22 +772,17 @@ function saveView() {
   localStorage.setItem('view', JSON.stringify({ zoom: xZoom, scrollLeft: wrap.scrollLeft, scrollTop: wrap.scrollTop }));
 }
 
-function restoreView() {
-  try {
-    const v = JSON.parse(localStorage.getItem('view'));
-    if (!v) return;
-    if (v.zoom) xZoom = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, v.zoom));
-    build();
-    wrap.scrollLeft = v.scrollLeft || 0;
-    wrap.scrollTop  = v.scrollTop  || 0;
-  } catch(e) {}
-}
 
 // ─── Mastered state ───────────────────────────────────────────────────────
 const mastered = new Set(JSON.parse(localStorage.getItem('mastered') || '[]'));
 
 // ─── Init ─────────────────────────────────────────────────────────────────
-restoreView();
+try {
+  const v = JSON.parse(localStorage.getItem('view'));
+  if (v && v.zoom) xZoom = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, v.zoom));
+  build();
+  if (v) { wrap.scrollLeft = v.scrollLeft || 0; wrap.scrollTop = v.scrollTop || 0; }
+} catch(e) { build(); }
 window.addEventListener('resize', build);
 </script>
 </body>
