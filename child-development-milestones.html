@@ -1,0 +1,794 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Child Development Milestones</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,500;0,9..40,700;1,9..40,300&display=swap');
+
+  :root {
+    --bg: #0d0f14;
+    --surface: #13161e;
+    --border: #1e2330;
+    --motor:    #ff6b6b;
+    --fine:     #ffa94d;
+    --language: #74c0fc;
+    --cognitive:#b197fc;
+    --social:   #63e6be;
+    --emotional:#f783ac;
+    --text: #e8eaf0;
+    --muted: #5a6070;
+    --highlight: #ffffff;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  header {
+    padding: 36px 48px 24px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+  }
+
+  header h1 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    color: var(--highlight);
+  }
+
+  header p {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.7rem;
+    color: var(--muted);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-top: 4px;
+  }
+
+  .legend {
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 0.75rem;
+    color: var(--muted);
+    font-family: 'DM Mono', monospace;
+    letter-spacing: 0.05em;
+    cursor: pointer;
+    transition: color 0.2s;
+  }
+
+  .legend-item:hover { color: var(--text); }
+
+  .legend-item.active { color: var(--text); }
+
+  .legend-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .chart-wrap {
+    overflow-x: auto;
+    overflow-y: auto;
+    padding: 0;
+    cursor: grab;
+    user-select: none;
+    max-height: calc(100vh - 140px);
+  }
+
+  .chart-wrap:active { cursor: grabbing; }
+
+  svg {
+    display: block;
+  }
+
+  /* Age axis */
+  .axis-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    fill: var(--muted);
+    text-anchor: middle;
+  }
+
+  .axis-tick {
+    stroke: var(--border);
+    stroke-width: 1;
+  }
+
+  .year-tick {
+    stroke: #2a2f3f;
+    stroke-width: 1;
+  }
+
+  .year-label {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+    fill: #2e3448;
+    text-anchor: middle;
+  }
+
+  /* Rows */
+  .row-bg-even { fill: #0f111a; }
+  .row-bg-odd  { fill: var(--bg); }
+
+  .row-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    fill: var(--muted);
+    text-anchor: end;
+    dominant-baseline: middle;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  /* Edges */
+  .edge {
+    fill: none;
+    stroke-width: 1.5;
+    stroke-opacity: 0.18;
+    stroke-dasharray: 4 3;
+    transition: stroke-opacity 0.2s, stroke-width 0.2s;
+  }
+
+  .edge.highlighted {
+    stroke-opacity: 0.85;
+    stroke-width: 2;
+    stroke-dasharray: none;
+  }
+
+  .edge.faded { stroke-opacity: 0.04; }
+
+  /* Nodes */
+  .node-group { cursor: pointer; }
+
+  .mastered-check {
+    font-size: 14px;
+    fill: #fff;
+    text-anchor: middle;
+    dominant-baseline: middle;
+    pointer-events: none;
+  }
+
+  .node-circle {
+    transition: filter 0.15s;
+  }
+
+  .node-group:hover .node-circle {
+    filter: brightness(1.3);
+  }
+
+  .node-label {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 10px;
+    font-weight: 500;
+    fill: var(--text);
+    text-anchor: middle;
+    dominant-baseline: middle;
+    pointer-events: none;
+  }
+
+  .node-age {
+    font-family: 'DM Mono', monospace;
+    font-size: 8.5px;
+    fill: var(--muted);
+    text-anchor: middle;
+    pointer-events: none;
+  }
+
+  /* Info panel */
+  #info {
+    position: fixed;
+    bottom: 28px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 24px;
+    min-width: 380px;
+    max-width: 560px;
+    display: none;
+    box-shadow: 0 8px 40px rgba(0,0,0,0.5);
+    backdrop-filter: blur(10px);
+    z-index: 100;
+  }
+
+  #info.visible { display: block; }
+
+  #info-title {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--highlight);
+    margin-bottom: 4px;
+  }
+
+  #info-meta {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.68rem;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 12px;
+  }
+
+  .info-section { margin-bottom: 8px; }
+
+  .info-section-label {
+    font-size: 0.68rem;
+    color: var(--muted);
+    font-family: 'DM Mono', monospace;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 5px;
+  }
+
+  .info-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .info-tag {
+    font-size: 0.72rem;
+    padding: 3px 9px;
+    border-radius: 20px;
+    border: 1px solid;
+    font-family: 'DM Mono', monospace;
+  }
+
+  #close-info {
+    position: absolute;
+    top: 12px;
+    right: 14px;
+    background: none;
+    border: none;
+    color: var(--muted);
+    font-size: 1.1rem;
+    cursor: pointer;
+    line-height: 1;
+  }
+
+  #close-info:hover { color: var(--text); }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>Child Development Milestones</h1>
+    <p>Dependency graph · Ages 0 – 60 months · click any node</p>
+  </div>
+  <div class="legend" id="legend"></div>
+</header>
+
+<div class="chart-wrap" id="chartWrap">
+  <svg id="svg"></svg>
+</div>
+
+<div id="info">
+  <button id="close-info">✕</button>
+  <div id="info-title"></div>
+  <div id="info-meta"></div>
+  <div class="info-section" id="info-depends-section">
+    <div class="info-section-label">Requires</div>
+    <div class="info-tags" id="info-depends"></div>
+  </div>
+  <div class="info-section" id="info-enables-section">
+    <div class="info-section-label">Enables</div>
+    <div class="info-tags" id="info-enables"></div>
+  </div>
+</div>
+
+<script>
+const DOMAINS = [
+  { id: 'motor',     label: 'Gross Motor',  color: '#ff6b6b' },
+  { id: 'fine',      label: 'Fine Motor',   color: '#ffa94d' },
+  { id: 'language',  label: 'Language',     color: '#74c0fc' },
+  { id: 'cognitive', label: 'Cognitive',    color: '#b197fc' },
+  { id: 'social',    label: 'Social',       color: '#63e6be' },
+  { id: 'emotional', label: 'Emotional',    color: '#f783ac' },
+];
+
+const MILESTONES = [
+  // GROSS MOTOR
+  { id:'gm1',  domain:'motor',     name:'Lifts head',         age:1  },
+  { id:'gm2',  domain:'motor',     name:'Head steady',        age:3,  deps:['gm1'] },
+  { id:'gm3',  domain:'motor',     name:'Rolls over',         age:4,  deps:['gm2'] },
+  { id:'gm4',  domain:'motor',     name:'Sits w/ support',    age:5,  deps:['gm2'] },
+  { id:'gm5',  domain:'motor',     name:'Sits alone',         age:7,  deps:['gm4'] },
+  { id:'gm6',  domain:'motor',     name:'Crawls',             age:9,  deps:['gm3','gm5'] },
+  { id:'gm7',  domain:'motor',     name:'Pulls to stand',     age:10, deps:['gm5','gm6'] },
+  { id:'gm8',  domain:'motor',     name:'Cruises',            age:11, deps:['gm7'] },
+  { id:'gm9',  domain:'motor',     name:'Stands alone',       age:12, deps:['gm7'] },
+  { id:'gm10', domain:'motor',     name:'Walks',              age:13, deps:['gm8','gm9'] },
+  { id:'gm11', domain:'motor',     name:'Runs',               age:18, deps:['gm10'] },
+  { id:'gm12', domain:'motor',     name:'Kicks ball',         age:20, deps:['gm10'] },
+  { id:'gm13', domain:'motor',     name:'Jumps',              age:26, deps:['gm11'] },
+  { id:'gm14', domain:'motor',     name:'Pedals trike',       age:33, deps:['gm13'] },
+  { id:'gm15', domain:'motor',     name:'Hops one foot',      age:42, deps:['gm13'] },
+  { id:'gm16', domain:'motor',     name:'Skips',              age:54, deps:['gm15'] },
+
+  // FINE MOTOR
+  { id:'fm1',  domain:'fine',      name:'Reflexive grasp',    age:1  },
+  { id:'fm2',  domain:'fine',      name:'Reaches',            age:4,  deps:['fm1'] },
+  { id:'fm3',  domain:'fine',      name:'Grasps voluntarily', age:5,  deps:['fm1','fm2'] },
+  { id:'fm4',  domain:'fine',      name:'Transfers objects',  age:6,  deps:['fm3'] },
+  { id:'fm5',  domain:'fine',      name:'Pincer grasp',       age:9,  deps:['fm3'] },
+  { id:'fm6',  domain:'fine',      name:'Points',             age:10, deps:['fm5'] },
+  { id:'fm7',  domain:'fine',      name:'Stacks blocks',      age:15, deps:['fm5'] },
+  { id:'fm8',  domain:'fine',      name:'Scribbles',          age:16, deps:['fm3'] },
+  { id:'fm9',  domain:'fine',      name:'Turns pages',        age:18, deps:['fm5'] },
+  { id:'fm10', domain:'fine',      name:'Holds crayon',       age:26, deps:['fm8'] },
+  { id:'fm11', domain:'fine',      name:'Copies circle',      age:33, deps:['fm10'] },
+  { id:'fm12', domain:'fine',      name:'Uses scissors',      age:36, deps:['fm10'] },
+  { id:'fm13', domain:'fine',      name:'Copies square',      age:42, deps:['fm11'] },
+  { id:'fm14', domain:'fine',      name:'Draws person',       age:44, deps:['fm11'] },
+  { id:'fm15', domain:'fine',      name:'Writes letters',     age:52, deps:['fm13'] },
+
+  // LANGUAGE
+  { id:'la1',  domain:'language',  name:'Coos',               age:2  },
+  { id:'la2',  domain:'language',  name:'Laughs',             age:4,  deps:['la1'] },
+  { id:'la3',  domain:'language',  name:'Babbles',            age:6,  deps:['la1'] },
+  { id:'la4',  domain:'language',  name:'Varies tone',        age:8,  deps:['la3'] },
+  { id:'la5',  domain:'language',  name:'mama/dada',          age:10, deps:['la3'] },
+  { id:'la6',  domain:'language',  name:'First words',        age:12, deps:['la5'] },
+  { id:'la7',  domain:'language',  name:'Vocab 20 words',     age:18, deps:['la6'] },
+  { id:'la8',  domain:'language',  name:'2-word phrases',     age:21, deps:['la7'] },
+  { id:'la9',  domain:'language',  name:'Vocab 200+ words',   age:27, deps:['la7'] },
+  { id:'la10', domain:'language',  name:'Simple sentences',   age:30, deps:['la8'] },
+  { id:'la11', domain:'language',  name:'Asks "why"',         age:33, deps:['la10'] },
+  { id:'la12', domain:'language',  name:'4–5 word sentences', age:40, deps:['la10'] },
+  { id:'la13', domain:'language',  name:'Tells stories',      age:48, deps:['la12'] },
+  { id:'la14', domain:'language',  name:'Complex sentences',  age:52, deps:['la12'] },
+
+  // COGNITIVE
+  { id:'co1',  domain:'cognitive', name:'Tracks objects',     age:2  },
+  { id:'co2',  domain:'cognitive', name:'Recognises faces',   age:3,  deps:['co1'] },
+  { id:'co3',  domain:'cognitive', name:'Looks for dropped',  age:6,  deps:['co1'] },
+  { id:'co4',  domain:'cognitive', name:'Object permanence',  age:9,  deps:['co3'] },
+  { id:'co5',  domain:'cognitive', name:'Imitates gestures',  age:10, deps:['co2'] },
+  { id:'co6',  domain:'cognitive', name:'Finds hidden obj.',  age:12, deps:['co4'] },
+  { id:'co7',  domain:'cognitive', name:'Simple pretend',     age:15, deps:['co5','co4'] },
+  { id:'co8',  domain:'cognitive', name:'Cause & effect',     age:15, deps:['co4'] },
+  { id:'co9',  domain:'cognitive', name:'Sorts shapes',       age:21, deps:['co6'] },
+  { id:'co10', domain:'cognitive', name:'Complex pretend',    age:30, deps:['co7'] },
+  { id:'co11', domain:'cognitive', name:'Counts to 10',       age:40, deps:['co9'] },
+  { id:'co12', domain:'cognitive', name:'Time concepts',      age:42, deps:['co11','la10'] },
+  { id:'co13', domain:'cognitive', name:'Fantasy vs reality', age:54, deps:['co10','co12'] },
+
+  // SOCIAL
+  { id:'so1',  domain:'social',    name:'Social smile',       age:2  },
+  { id:'so2',  domain:'social',    name:'Enjoys play',        age:5,  deps:['so1'] },
+  { id:'so3',  domain:'social',    name:'Stranger anxiety',   age:8,  deps:['co2'] },
+  { id:'so4',  domain:'social',    name:'Plays peek-a-boo',   age:9,  deps:['so1','co4'] },
+  { id:'so5',  domain:'social',    name:'Shows preferences',  age:11, deps:['so2'] },
+  { id:'so6',  domain:'social',    name:'Points to share',    age:13, deps:['fm6','la6','so5'] },
+  { id:'so7',  domain:'social',    name:'Parallel play',      age:20, deps:['so5'] },
+  { id:'so8',  domain:'social',    name:'Imitates others',    age:21, deps:['co5'] },
+  { id:'so9',  domain:'social',    name:'Associative play',   age:28, deps:['so7'] },
+  { id:'so10', domain:'social',    name:'Cooperative play',   age:42, deps:['so9','la10'] },
+  { id:'so11', domain:'social',    name:'Negotiates',         age:46, deps:['so10','la12'] },
+  { id:'so12', domain:'social',    name:'Understands rules',  age:52, deps:['so11'] },
+
+  // EMOTIONAL
+  { id:'em1',  domain:'emotional', name:'Shows comfort',      age:1  },
+  { id:'em2',  domain:'emotional', name:'Smiles & laughs',    age:4,  deps:['so1'] },
+  { id:'em3',  domain:'emotional', name:'Fear response',      age:8,  deps:['co2'] },
+  { id:'em4',  domain:'emotional', name:'Separation anxiety', age:9,  deps:['co4','em3'] },
+  { id:'em5',  domain:'emotional', name:'Shows affection',    age:14, deps:['em2'] },
+  { id:'em6',  domain:'emotional', name:'Expresses frustration', age:16, deps:['em5'] },
+  { id:'em7',  domain:'emotional', name:'Pride & shame',      age:20, deps:['em5'] },
+  { id:'em8',  domain:'emotional', name:'Shows empathy',      age:30, deps:['em5','co5'] },
+  { id:'em9',  domain:'emotional', name:'Names feelings',     age:40, deps:['em8','la10'] },
+  { id:'em10', domain:'emotional', name:'Self-regulation',    age:50, deps:['em9','co12'] },
+];
+
+// ─── Layout constants ──────────────────────────────────────────────────────
+const LABEL_W  = 110;   // left label column width
+const PAD_R    = 40;    // right padding
+const AXIS_H   = 44;    // top axis height
+const ROW_H    = 85;    // height per domain row
+const NODE_R   = 26;    // node radius
+const MAX_AGE  = 60;
+
+const domainOrder = DOMAINS.map(d => d.id);
+const colorMap    = Object.fromEntries(DOMAINS.map(d => [d.id, d.color]));
+
+// ─── SVG helpers ──────────────────────────────────────────────────────────
+const SVG_NS = 'http://www.w3.org/2000/svg';
+function el(tag, attrs = {}, parent) {
+  const e = document.createElementNS(SVG_NS, tag);
+  for (const [k,v] of Object.entries(attrs)) e.setAttribute(k, v);
+  if (parent) parent.appendChild(e);
+  return e;
+}
+function setText(e, t) { e.textContent = t; }
+
+// ─── Build ────────────────────────────────────────────────────────────────
+const svg  = document.getElementById('svg');
+const wrap = document.getElementById('chartWrap');
+
+let xZoom = 1;
+
+function build() {
+  svg.innerHTML = '';
+
+  const baseW = Math.max(wrap.clientWidth, LABEL_W + PAD_R + 900);
+  const plotW = (baseW - LABEL_W - PAD_R) * xZoom;
+  const W = LABEL_W + PAD_R + plotW;
+  const H = AXIS_H + domainOrder.length * ROW_H + 20;
+
+  svg.setAttribute('width',  W);
+  svg.setAttribute('height', H);
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+
+  const xScale = age => LABEL_W + (age / MAX_AGE) * plotW;
+  const yScale = domain => AXIS_H + domainOrder.indexOf(domain) * ROW_H + ROW_H / 2;
+
+  // ── Background rows
+  domainOrder.forEach((d, i) => {
+    el('rect', {
+      x: 0, y: AXIS_H + i * ROW_H,
+      width: W, height: ROW_H,
+      fill: i % 2 === 0 ? '#0f111a' : '#0d0f14'
+    }, svg);
+  });
+
+  // ── Year bands + labels (top row)
+  for (let yr = 0; yr <= 5; yr++) {
+    const x = xScale(yr * 12);
+    el('line', { x1:x, y1:AXIS_H, x2:x, y2:H, class: yr === 0 ? 'axis-tick' : 'year-tick' }, svg);
+    if (yr > 0) {
+      const midX = (xScale((yr - 1) * 12) + xScale(yr * 12)) / 2;
+      const lbl = el('text', { x: midX, y: AXIS_H - 26, class:'year-label' }, svg);
+      setText(lbl, `Year ${yr}`);
+    }
+  }
+
+  // ── Month ticks every 3 months (bottom row of axis)
+  for (let mo = 3; mo < MAX_AGE; mo += 3) {
+    if (mo % 12 === 0) continue;
+    const x = xScale(mo);
+    el('line', { x1:x, y1:AXIS_H, x2:x, y2:H, class:'axis-tick' }, svg);
+    const lbl = el('text', { x, y: AXIS_H - 10, class:'axis-label' }, svg);
+    setText(lbl, mo + 'm');
+  }
+
+  // ── Row labels
+  DOMAINS.forEach(d => {
+    const lbl = el('text', {
+      x: LABEL_W - 12,
+      y: yScale(d.id),
+      class: 'row-label',
+      fill: colorMap[d.id] + '88'
+    }, svg);
+    setText(lbl, d.label);
+  });
+
+  // ── Node positions
+  const pos = {};
+  MILESTONES.forEach(m => {
+    pos[m.id] = { x: xScale(m.age), y: yScale(m.domain) };
+  });
+
+  // ── Edges layer
+  const edgeLayer = el('g', { id:'edgeLayer' }, svg);
+  const edgeEls   = {};
+
+  MILESTONES.forEach(m => {
+    (m.deps || []).forEach(depId => {
+      const from = pos[depId];
+      const to   = pos[m.id];
+      const dep  = MILESTONES.find(x => x.id === depId);
+      const color = colorMap[dep.domain];
+      const dx = to.x - from.x;
+      const cx1 = from.x + dx * 0.45;
+      const cx2 = to.x   - dx * 0.45;
+      const path = el('path', {
+        d: `M${from.x},${from.y} C${cx1},${from.y} ${cx2},${to.y} ${to.x},${to.y}`,
+        stroke: color,
+        class: 'edge',
+        'data-from': depId,
+        'data-to':   m.id
+      }, edgeLayer);
+      const key = depId + '__' + m.id;
+      edgeEls[key] = path;
+    });
+  });
+
+  // ── Nodes layer
+  const nodeLayer = el('g', { id:'nodeLayer' }, svg);
+
+  MILESTONES.forEach(m => {
+    const { x, y } = pos[m.id];
+    const color = colorMap[m.domain];
+    const g = el('g', { class:'node-group', 'data-id': m.id }, nodeLayer);
+
+    // Label — render first so we can measure it
+    const PAD_X = 10, PAD_Y = 7, LINE_H = 13;
+    const words = m.name.split(' ');
+    let labelEls = [];
+    if (words.length <= 2) {
+      const t = el('text', { x, y: y + 1, class:'node-label' }, g);
+      setText(t, m.name);
+      labelEls = [t];
+    } else {
+      const mid = Math.ceil(words.length / 2);
+      const t1 = el('text', { x, y: y - LINE_H / 2, class:'node-label' }, g);
+      setText(t1, words.slice(0, mid).join(' '));
+      const t2 = el('text', { x, y: y + LINE_H / 2 + 1, class:'node-label' }, g);
+      setText(t2, words.slice(mid).join(' '));
+      labelEls = [t1, t2];
+    }
+
+    // Measure text to size the box
+    let maxW = 0;
+    labelEls.forEach(t => { try { maxW = Math.max(maxW, t.getBBox().width); } catch(e) {} });
+    const lineCount = labelEls.length;
+    const boxW = Math.max(maxW + PAD_X * 2, 48);
+    const boxH = lineCount * LINE_H + PAD_Y * 2;
+
+    // Insert boxes before text nodes
+    const glowRect = el('rect', {
+      x: x - boxW/2 - 4, y: y - boxH/2 - 4,
+      width: boxW + 8, height: boxH + 8, rx: 7,
+      fill: color, opacity: '0.10'
+    });
+    const mainRect = el('rect', {
+      x: x - boxW/2, y: y - boxH/2,
+      width: boxW, height: boxH, rx: 4,
+      fill: color + '22', stroke: color,
+      'stroke-width': 1.8, class: 'node-circle'
+    });
+    g.insertBefore(mainRect, labelEls[0]);
+    g.insertBefore(glowRect, mainRect);
+
+    // Age below box
+    const age = el('text', { x, y: y + boxH/2 + 11, class:'node-age' }, g);
+    setText(age, m.age + 'm');
+
+    // Mastered overlay (top-right corner of box)
+    const ckX = x + boxW/2 + 4, ckY = y - boxH/2 - 4;
+    const isMastered = mastered.has(m.id);
+    const ckTxt = el('text', { x: ckX, y: ckY, class: 'mastered-check',
+      opacity: isMastered ? '1' : '0.18',
+      'pointer-events': 'none'
+    }, g);
+    setText(ckTxt, '✔️');
+
+    // Large invisible hit target over the checkmark
+    const ckHit = el('circle', { cx: ckX, cy: ckY, r: 10,
+      fill: 'transparent', cursor: 'pointer'
+    }, g);
+
+    // Dim box fill if mastered
+    if (isMastered) {
+      mainRect.setAttribute('fill', color + '55');
+      mainRect.setAttribute('stroke-width', '2.5');
+    }
+
+    // Click the hit target to toggle mastered
+    ckHit.addEventListener('click', e => {
+      e.stopPropagation();
+      if (mastered.has(m.id)) {
+        mastered.delete(m.id);
+        ckTxt.setAttribute('opacity', '0.18');
+        mainRect.setAttribute('fill', color + '22');
+        mainRect.setAttribute('stroke-width', '1.8');
+      } else {
+        mastered.add(m.id);
+        ckTxt.setAttribute('opacity', '1');
+        mainRect.setAttribute('fill', color + '55');
+        mainRect.setAttribute('stroke-width', '2.5');
+      }
+      localStorage.setItem('mastered', JSON.stringify([...mastered]));
+    });
+
+    // Hover / click
+    g.addEventListener('mouseenter', () => hoverNode(m, edgeEls, pos));
+    g.addEventListener('mouseleave', () => clearHover(edgeEls));
+    g.addEventListener('click', () => selectNode(m, edgeEls, pos, color));
+  });
+}
+
+// ─── Interaction ──────────────────────────────────────────────────────────
+let activeId = null;
+
+function getConnectedIds(m) {
+  const deps    = m.deps || [];
+  const enables = MILESTONES.filter(x => (x.deps||[]).includes(m.id)).map(x => x.id);
+  return { deps, enables, all: [...deps, ...enables] };
+}
+
+function hoverNode(m, edgeEls, pos) {
+  if (activeId) return; // don't override selection
+  applyHighlight(m, edgeEls);
+}
+
+function clearHover(edgeEls) {
+  if (activeId) return;
+  resetHighlight(edgeEls);
+}
+
+function applyHighlight(m, edgeEls) {
+  const { all } = getConnectedIds(m);
+  const allIds  = new Set([m.id, ...all]);
+
+  // Edges
+  Object.entries(edgeEls).forEach(([key, el]) => {
+    const [from, to] = key.split('__');
+    const connected  = allIds.has(from) && allIds.has(to);
+    el.classList.toggle('highlighted', connected);
+    el.classList.toggle('faded',       !connected);
+  });
+
+  // Nodes
+  document.querySelectorAll('.node-group').forEach(g => {
+    const id = g.getAttribute('data-id');
+    g.style.opacity = allIds.has(id) ? '1' : '0.2';
+  });
+}
+
+function resetHighlight(edgeEls) {
+  Object.values(edgeEls).forEach(el => {
+    el.classList.remove('highlighted', 'faded');
+  });
+  document.querySelectorAll('.node-group').forEach(g => {
+    g.style.opacity = '1';
+  });
+}
+
+function selectNode(m, edgeEls, pos, color) {
+  if (activeId === m.id) {
+    activeId = null;
+    resetHighlight(edgeEls);
+    document.getElementById('info').classList.remove('visible');
+    return;
+  }
+  activeId = m.id;
+  applyHighlight(m, edgeEls);
+
+  const { deps, enables } = getConnectedIds(m);
+  const panel = document.getElementById('info');
+
+  document.getElementById('info-title').textContent = m.name;
+  document.getElementById('info-title').style.color = color;
+  document.getElementById('info-meta').textContent =
+    `${DOMAINS.find(d=>d.id===m.domain).label}  ·  typical age: ${m.age} months`;
+
+  const depsEl = document.getElementById('info-depends');
+  const enabEl = document.getElementById('info-enables');
+  depsEl.innerHTML = '';
+  enabEl.innerHTML = '';
+
+  if (deps.length) {
+    deps.forEach(id => {
+      const dep = MILESTONES.find(x => x.id === id);
+      const tag = document.createElement('span');
+      tag.className = 'info-tag';
+      tag.textContent = dep.name;
+      tag.style.borderColor = colorMap[dep.domain] + '88';
+      tag.style.color = colorMap[dep.domain];
+      tag.style.background = colorMap[dep.domain] + '18';
+      depsEl.appendChild(tag);
+    });
+    document.getElementById('info-depends-section').style.display = '';
+  } else {
+    document.getElementById('info-depends-section').style.display = 'none';
+  }
+
+  if (enables.length) {
+    enables.forEach(id => {
+      const en = MILESTONES.find(x => x.id === id);
+      const tag = document.createElement('span');
+      tag.className = 'info-tag';
+      tag.textContent = en.name;
+      tag.style.borderColor = colorMap[en.domain] + '88';
+      tag.style.color = colorMap[en.domain];
+      tag.style.background = colorMap[en.domain] + '18';
+      enabEl.appendChild(tag);
+    });
+    document.getElementById('info-enables-section').style.display = '';
+  } else {
+    document.getElementById('info-enables-section').style.display = 'none';
+  }
+
+  panel.classList.add('visible');
+}
+
+document.getElementById('close-info').addEventListener('click', () => {
+  activeId = null;
+  document.getElementById('info').classList.remove('visible');
+  const edgeEls = {};
+  document.querySelectorAll('.edge').forEach(e => {
+    e.classList.remove('highlighted', 'faded');
+  });
+  document.querySelectorAll('.node-group').forEach(g => g.style.opacity = '1');
+});
+
+// ─── Legend ───────────────────────────────────────────────────────────────
+const legendEl = document.getElementById('legend');
+DOMAINS.forEach(d => {
+  const item = document.createElement('div');
+  item.className = 'legend-item';
+  item.innerHTML = `<span class="legend-dot" style="background:${d.color}"></span>${d.label}`;
+  legendEl.appendChild(item);
+});
+
+// ─── Pan support ──────────────────────────────────────────────────────────
+let panning = false, lastX = 0;
+wrap.addEventListener('mousedown', e => { panning = true; lastX = e.clientX; });
+wrap.addEventListener('mousemove', e => {
+  if (!panning) return;
+  wrap.scrollLeft -= e.clientX - lastX;
+  lastX = e.clientX;
+});
+wrap.addEventListener('mouseup',   () => { panning = false; saveView(); });
+wrap.addEventListener('mouseleave',() => { panning = false; });
+
+// ─── Zoom support (x-axis only) ───────────────────────────────────────────
+const ZOOM_MIN = 0.4, ZOOM_MAX = 6, ZOOM_FACTOR = 1.12;
+
+wrap.addEventListener('wheel', e => {
+  e.preventDefault();
+  const rect = wrap.getBoundingClientRect();
+  const mouseX = e.clientX - rect.left + wrap.scrollLeft;
+
+  const ratio = e.deltaY < 0 ? ZOOM_FACTOR : 1 / ZOOM_FACTOR;
+  const newZoom = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, xZoom * ratio));
+  if (newZoom === xZoom) return;
+
+  const zoomRatio = newZoom / xZoom;
+  xZoom = newZoom;
+  build();
+
+  wrap.scrollLeft = mouseX * zoomRatio - (e.clientX - rect.left);
+  saveView();
+}, { passive: false });
+
+// ─── Persist view ─────────────────────────────────────────────────────────
+function saveView() {
+  localStorage.setItem('view', JSON.stringify({ zoom: xZoom, scrollLeft: wrap.scrollLeft, scrollTop: wrap.scrollTop }));
+}
+
+function restoreView() {
+  try {
+    const v = JSON.parse(localStorage.getItem('view'));
+    if (!v) return;
+    if (v.zoom) xZoom = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, v.zoom));
+    build();
+    wrap.scrollLeft = v.scrollLeft || 0;
+    wrap.scrollTop  = v.scrollTop  || 0;
+  } catch(e) {}
+}
+
+// ─── Mastered state ───────────────────────────────────────────────────────
+const mastered = new Set(JSON.parse(localStorage.getItem('mastered') || '[]'));
+
+// ─── Init ─────────────────────────────────────────────────────────────────
+restoreView();
+window.addEventListener('resize', build);
+</script>
+</body>
+</html>
