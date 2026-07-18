@@ -279,15 +279,24 @@
                 </div>
             </div>
             
-            <button onclick="updateMap()">Update Map</button>
-            <button onclick="reloadTable()" style="background: linear-gradient(135deg, #ff6b6b 0%, #ee5a52 100%); margin-top: 5px;">Reload Table</button>
-            <button onclick="loadSampleData()" style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);">Load Sample Data</button>
+            <button type="button" onclick="updateMap()">Update Map</button>
+            <button type="button" onclick="reloadTable()" style="background: linear-gradient(135deg, #ff6b6b 0%, #ee5a52 100%); margin-top: 5px;">Reload Table</button>
+            <button type="button" onclick="loadSampleData()" style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);">Load Sample Data</button>
             
             <div class="stats" id="stats" style="display: none;">
                 <h3>Track Statistics</h3>
                 <p id="pointCount">Points: 0</p>
                 <p id="dateRange">Date Range: -</p>
                 <p id="trackCount">Tracks: 0</p>
+                <p id="avgSpeed">Avg Speed: -</p>
+                <p id="maxSpeed">Max Speed: -</p>
+            </div>
+            
+            <div class="chart-container" id="chartContainer" style="display: none; margin-top: 20px; background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
+                <h4 style="margin: 0 0 10px 0; color: #333;">Speed Over Time (km/h)</h4>
+                <div style="position: relative; height: 200px;">
+                    <canvas id="speedChart"></canvas>
+                </div>
             </div>
         </div>
         
@@ -302,6 +311,7 @@
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/sql-wasm.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
     <script>
         let map;
         let trackData = [];
@@ -503,6 +513,7 @@
                     
                     sampleData.push({
                         timestamp: timestamp.toISOString().split('T')[0],
+                        datetime: timestamp.toISOString(),
                         latitude: baseLat + offset + randomOffset,
                         longitude: baseLng + offset * 0.5 + randomOffset
                     });
@@ -609,6 +620,7 @@
                     
                     // Handle timestamp - could be in seconds or milliseconds
                     let processedTimestamp = '2024-01-01';
+                    let processedDatetime = null;
                     if (timestamp) {
                         let timestampMs;
                         if (typeof timestamp === 'number') {
@@ -621,12 +633,14 @@
                         }
                         
                         if (!isNaN(timestampMs)) {
-                            processedTimestamp = new Date(timestampMs).toISOString().split('T')[0];
+                            processedDatetime = new Date(timestampMs).toISOString();
+                            processedTimestamp = processedDatetime.split('T')[0];
                         }
                     }
                     
                     return {
                         timestamp: processedTimestamp,
+                        datetime: processedDatetime,
                         latitude: parseFloat(latitude) || 0,
                         longitude: parseFloat(longitude) || 0
                     };
@@ -665,6 +679,100 @@
             return `hsl(${hue}, 70%, 50%)`;
         }
         
+        // Haversine distance between two coordinates in meters
+        function haversineDistance(lat1, lon1, lat2, lon2) {
+            const R = 6371000;
+            const toRad = (x) => x * Math.PI / 180;
+            const dLat = toRad(lat2 - lat1);
+            const dLon = toRad(lon2 - lon1);
+            const a = Math.sin(dLat / 2) ** 2 +
+                      Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+                      Math.sin(dLon / 2) ** 2;
+            return 2 * R * Math.asin(Math.sqrt(a));
+        }
+        
+        // Speed chart instance
+        let speedChart = null;
+        
+        // Update speed chart from filtered data
+        function updateSpeedChart(filteredData) {
+            const container = document.getElementById('chartContainer');
+            const sorted = filteredData
+                .filter(p => p.datetime)
+                .sort((a, b) => new Date(a.datetime) - new Date(b.datetime));
+            
+            const labels = [];
+            const speeds = [];
+            
+            for (let i = 1; i < sorted.length; i++) {
+                const prev = sorted[i - 1];
+                const curr = sorted[i];
+                // Skip gaps across different dates
+                if (prev.timestamp !== curr.timestamp) continue;
+                const dt = (new Date(curr.datetime) - new Date(prev.datetime)) / 1000;
+                if (dt <= 0) continue;
+                const dist = haversineDistance(prev.latitude, prev.longitude, curr.latitude, curr.longitude);
+                const speedKmh = (dist / dt) * 3.6;
+                labels.push(new Date(curr.datetime).toLocaleTimeString());
+                speeds.push(speedKmh);
+            }
+            
+            // Update speed stats
+            if (speeds.length > 0) {
+                const avg = speeds.reduce((s, v) => s + v, 0) / speeds.length;
+                const max = Math.max(...speeds);
+                document.getElementById('avgSpeed').textContent = `Avg Speed: ${avg.toFixed(1)} km/h`;
+                document.getElementById('maxSpeed').textContent = `Max Speed: ${max.toFixed(1)} km/h`;
+            } else {
+                document.getElementById('avgSpeed').textContent = `Avg Speed: -`;
+                document.getElementById('maxSpeed').textContent = `Max Speed: -`;
+            }
+            
+            if (labels.length === 0) {
+                container.style.display = 'none';
+                if (speedChart) { speedChart.destroy(); speedChart = null; }
+                return;
+            }
+            
+            container.style.display = 'block';
+            
+            if (speedChart) {
+                speedChart.data.labels = labels;
+                speedChart.data.datasets[0].data = speeds;
+                speedChart.update();
+            } else {
+                const ctx = document.getElementById('speedChart').getContext('2d');
+                speedChart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: 'Speed (km/h)',
+                            data: speeds,
+                            borderColor: '#667eea',
+                            backgroundColor: 'rgba(102, 126, 234, 0.15)',
+                            fill: true,
+                            tension: 0.3,
+                            pointRadius: 0,
+                            borderWidth: 2
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: { mode: 'index', intersect: false }
+                        },
+                        scales: {
+                            x: { ticks: { maxTicksLimit: 6, font: { size: 10 } } },
+                            y: { beginAtZero: true, ticks: { font: { size: 10 } } }
+                        }
+                    }
+                });
+            }
+        }
+        
         // Update map with filtered data
         function updateMap() {
             const dateSelection = getSelectedDateRange();
@@ -687,6 +795,7 @@
             if (filteredData.length === 0) {
                 document.getElementById('stats').style.display = 'none';
                 document.getElementById('legend').style.display = 'none';
+                document.getElementById('chartContainer').style.display = 'none';
                 return;
             }
             
@@ -745,6 +854,9 @@
             document.getElementById('trackCount').textContent = `Tracks: ${Object.keys(dateGroups).length}`;
             document.getElementById('stats').style.display = 'block';
             document.getElementById('legend').style.display = allDates.length > 1 ? 'block' : 'none';
+            
+            // Update speed chart
+            updateSpeedChart(filteredData);
         }
         
         // Reload data from the specified table
