@@ -529,7 +529,7 @@
             
             try {
                 // Query the data - adjust column names as needed
-                const result = db.exec(`SELECT * FROM "${tableName}" LIMIT 1000`);
+                const result = db.exec(`SELECT * FROM "${tableName}"`);
                 if (result.length === 0) {
                     alert(`No data found in table: ${tableName}`);
                     return;
