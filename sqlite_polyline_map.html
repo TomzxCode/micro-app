@@ -831,10 +831,22 @@
                 if (points.length > 1) {
                     const color = getColorForDate(date, allDates);
                     
+                    // White casing for contrast over the map
+                    const casing = L.polyline(points, {
+                        color: '#ffffff',
+                        weight: 6,
+                        opacity: 0.7,
+                        lineCap: 'round',
+                        lineJoin: 'round'
+                    });
+                    polylineGroup.addLayer(casing);
+                    
                     const polyline = L.polyline(points, {
                         color: color,
                         weight: 3,
-                        opacity: 0.8
+                        opacity: 0.9,
+                        lineCap: 'round',
+                        lineJoin: 'round'
                     }).bindPopup(`Date: ${date}<br>Points: ${points.length}`);
                     
                     polylineGroup.addLayer(polyline);
