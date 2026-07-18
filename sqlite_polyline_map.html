@@ -470,8 +470,13 @@
             endDateInput.min = minStr;
             endDateInput.max = maxStr;
             
-            // Reset to full range
-            selectedRange = { start: 0, end: 100 };
+            // Default to the latest 7 days when the range exceeds a week
+            const totalDays = (maxDate - minDate) / (1000 * 60 * 60 * 24);
+            if (totalDays > 7) {
+                selectedRange = { start: ((totalDays - 7) / totalDays) * 100, end: 100 };
+            } else {
+                selectedRange = { start: 0, end: 100 };
+            }
             updateSliderUI();
             updateSelectedDates();
             
