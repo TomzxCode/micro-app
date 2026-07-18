@@ -218,6 +218,23 @@
             color: #333;
             font-size: 14px;
         }
+        
+        .date-selection > div {
+            flex: 1;
+        }
+        
+        .date-selection > div:first-child {
+            margin-right: 8px;
+        }
+        
+        .date-selection input[type="date"] {
+            width: 100%;
+            padding: 4px 6px;
+            font-size: 12px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            margin-top: 2px;
+        }
     </style>
 </head>
 <body>
@@ -253,11 +270,11 @@
                 <div class="date-selection">
                     <div>
                         <small>Start:</small>
-                        <div class="date-value" id="selectedStartDate">-</div>
+                        <input type="date" id="selectedStartDate" class="date-value" />
                     </div>
                     <div>
                         <small>End:</small>
-                        <div class="date-value" id="selectedEndDate">-</div>
+                        <input type="date" id="selectedEndDate" class="date-value" />
                     </div>
                 </div>
             </div>
@@ -352,6 +369,25 @@
             });
             
             slider.addEventListener('touchend', handleMouseUp);
+            
+            // Date input handlers (manual entry)
+            const startDateInput = document.getElementById('selectedStartDate');
+            const endDateInput = document.getElementById('selectedEndDate');
+            
+            function handleDateInputChange() {
+                if (!dateRange.min || !dateRange.max) return;
+                if (!startDateInput.value || !endDateInput.value) return;
+                if (new Date(startDateInput.value) > new Date(endDateInput.value)) {
+                    const tmp = startDateInput.value;
+                    startDateInput.value = endDateInput.value;
+                    endDateInput.value = tmp;
+                }
+                syncSliderFromDateInputs();
+                updateMap();
+            }
+            
+            startDateInput.addEventListener('change', handleDateInputChange);
+            endDateInput.addEventListener('change', handleDateInputChange);
         }
         
         // Update slider visual elements
@@ -377,8 +413,22 @@
             const startDate = new Date(dateRange.min.getTime() + startDays * 24 * 60 * 60 * 1000);
             const endDate = new Date(dateRange.min.getTime() + endDays * 24 * 60 * 60 * 1000);
             
-            document.getElementById('selectedStartDate').textContent = startDate.toISOString().split('T')[0];
-            document.getElementById('selectedEndDate').textContent = endDate.toISOString().split('T')[0];
+            document.getElementById('selectedStartDate').value = startDate.toISOString().split('T')[0];
+            document.getElementById('selectedEndDate').value = endDate.toISOString().split('T')[0];
+        }
+        
+        // Sync slider position from date inputs
+        function syncSliderFromDateInputs() {
+            if (!dateRange.min || !dateRange.max) return;
+            const startDateInput = document.getElementById('selectedStartDate');
+            const endDateInput = document.getElementById('selectedEndDate');
+            const total = dateRange.max.getTime() - dateRange.min.getTime();
+            if (total <= 0) return;
+            const startMs = new Date(startDateInput.value).getTime() - dateRange.min.getTime();
+            const endMs = new Date(endDateInput.value).getTime() - dateRange.min.getTime();
+            selectedRange.start = Math.max(0, Math.min(100, (startMs / total) * 100));
+            selectedRange.end = Math.max(0, Math.min(100, (endMs / total) * 100));
+            updateSliderUI();
         }
         
         // Setup date range slider with data
@@ -389,6 +439,16 @@
             // Update labels
             document.getElementById('minDateLabel').textContent = minDate.toISOString().split('T')[0];
             document.getElementById('maxDateLabel').textContent = maxDate.toISOString().split('T')[0];
+            
+            // Set min/max bounds on date inputs
+            const minStr = minDate.toISOString().split('T')[0];
+            const maxStr = maxDate.toISOString().split('T')[0];
+            const startDateInput = document.getElementById('selectedStartDate');
+            const endDateInput = document.getElementById('selectedEndDate');
+            startDateInput.min = minStr;
+            startDateInput.max = maxStr;
+            endDateInput.min = minStr;
+            endDateInput.max = maxStr;
             
             // Reset to full range
             selectedRange = { start: 0, end: 100 };
@@ -401,18 +461,12 @@
         
         // Get selected date range
         function getSelectedDateRange() {
-            if (!dateRange.min || !dateRange.max) return null;
-            
-            const totalDays = (dateRange.max - dateRange.min) / (1000 * 60 * 60 * 24);
-            const startDays = (selectedRange.start / 100) * totalDays;
-            const endDays = (selectedRange.end / 100) * totalDays;
-            
-            const startDate = new Date(dateRange.min.getTime() + startDays * 24 * 60 * 60 * 1000);
-            const endDate = new Date(dateRange.min.getTime() + endDays * 24 * 60 * 60 * 1000);
-            
+            const startDateInput = document.getElementById('selectedStartDate');
+            const endDateInput = document.getElementById('selectedEndDate');
+            if (!startDateInput.value || !endDateInput.value) return null;
             return {
-                start: startDate.toISOString().split('T')[0],
-                end: endDate.toISOString().split('T')[0]
+                start: startDateInput.value,
+                end: endDateInput.value
             };
         }
         function initMap() {
@@ -721,12 +775,8 @@
         document.addEventListener('DOMContentLoaded', function() {
             initMap();
             
-            // Set default dates
-            const today = new Date();
-            const weekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
-            
-            document.getElementById('startDate').value = weekAgo.toISOString().split('T')[0];
-            document.getElementById('endDate').value = today.toISOString().split('T')[0];
+            // Initialize date range slider
+            initDateRangeSlider();
         });
     </script>
 </body>
