@@ -48,7 +48,8 @@
             color: #333;
         }
         
-        input[type="date"] {
+        input[type="date"],
+        input[type="datetime-local"] {
             width: 100%;
             padding: 8px;
             border: 2px solid #ddd;
@@ -56,7 +57,8 @@
             font-size: 14px;
         }
         
-        input[type="date"]:focus {
+        input[type="date"]:focus,
+        input[type="datetime-local"]:focus {
             border-color: #4CAF50;
             outline: none;
         }
@@ -125,6 +127,8 @@
             right: 10px;
             z-index: 1000;
             min-width: 150px;
+            max-height: 60vh;
+            overflow-y: auto;
         }
         
         .legend-item {
@@ -236,7 +240,8 @@
             margin-right: 8px;
         }
         
-        .date-selection input[type="date"] {
+        .date-selection input[type="date"],
+        .date-selection input[type="datetime-local"] {
             width: 100%;
             padding: 4px 6px;
             font-size: 12px;
@@ -279,11 +284,11 @@
                 <div class="date-selection">
                     <div>
                         <small>Start:</small>
-                        <input type="date" id="selectedStartDate" class="date-value" />
+                        <input type="datetime-local" id="selectedStartDate" class="date-value" step="60" />
                     </div>
                     <div>
                         <small>End:</small>
-                        <input type="date" id="selectedEndDate" class="date-value" />
+                        <input type="datetime-local" id="selectedEndDate" class="date-value" step="60" />
                     </div>
                 </div>
             </div>
@@ -406,8 +411,8 @@
                 updateMap();
             }
             
-            startDateInput.addEventListener('change', handleDateInputChange);
-            endDateInput.addEventListener('change', handleDateInputChange);
+            startDateInput.addEventListener('blur', handleDateInputChange);
+            endDateInput.addEventListener('blur', handleDateInputChange);
         }
         
         // Update slider visual elements
@@ -422,19 +427,19 @@
             fill.style.width = (selectedRange.end - selectedRange.start) + '%';
         }
         
-        // Update selected date display
+        // Update selected datetime display (minute precision)
         function updateSelectedDates() {
             if (!dateRange.min || !dateRange.max) return;
             
-            const totalDays = (dateRange.max - dateRange.min) / (1000 * 60 * 60 * 24);
-            const startDays = (selectedRange.start / 100) * totalDays;
-            const endDays = (selectedRange.end / 100) * totalDays;
+            const totalMs = dateRange.max.getTime() - dateRange.min.getTime();
+            const startMs = (selectedRange.start / 100) * totalMs;
+            const endMs = (selectedRange.end / 100) * totalMs;
             
-            const startDate = new Date(dateRange.min.getTime() + startDays * 24 * 60 * 60 * 1000);
-            const endDate = new Date(dateRange.min.getTime() + endDays * 24 * 60 * 60 * 1000);
+            const startDate = new Date(dateRange.min.getTime() + startMs);
+            const endDate = new Date(dateRange.min.getTime() + endMs);
             
-            document.getElementById('selectedStartDate').value = startDate.toISOString().split('T')[0];
-            document.getElementById('selectedEndDate').value = endDate.toISOString().split('T')[0];
+            document.getElementById('selectedStartDate').value = toDatetimeLocal(startDate);
+            document.getElementById('selectedEndDate').value = toDatetimeLocal(endDate);
         }
         
         // Sync slider position from date inputs
@@ -451,18 +456,19 @@
             updateSliderUI();
         }
         
-        // Setup date range slider with data
+        // Setup datetime range slider with data
         function setupDateRangeSlider(minDate, maxDate) {
             dateRange.min = minDate;
             dateRange.max = maxDate;
             
-            // Update labels
-            document.getElementById('minDateLabel').textContent = minDate.toISOString().split('T')[0];
-            document.getElementById('maxDateLabel').textContent = maxDate.toISOString().split('T')[0];
+            const minStr = toDatetimeLocal(minDate);
+            const maxStr = toDatetimeLocal(maxDate);
             
-            // Set min/max bounds on date inputs
-            const minStr = minDate.toISOString().split('T')[0];
-            const maxStr = maxDate.toISOString().split('T')[0];
+            // Update labels
+            document.getElementById('minDateLabel').textContent = minStr;
+            document.getElementById('maxDateLabel').textContent = maxStr;
+            
+            // Set min/max bounds on datetime inputs
             const startDateInput = document.getElementById('selectedStartDate');
             const endDateInput = document.getElementById('selectedEndDate');
             startDateInput.min = minStr;
@@ -471,9 +477,10 @@
             endDateInput.max = maxStr;
             
             // Default to the latest 7 days when the range exceeds a week
-            const totalDays = (maxDate - minDate) / (1000 * 60 * 60 * 24);
-            if (totalDays > 7) {
-                selectedRange = { start: ((totalDays - 7) / totalDays) * 100, end: 100 };
+            const totalMs = maxDate.getTime() - minDate.getTime();
+            const sevenDaysMs = 7 * 24 * 60 * 60 * 1000;
+            if (totalMs > sevenDaysMs) {
+                selectedRange = { start: ((totalMs - sevenDaysMs) / totalMs) * 100, end: 100 };
             } else {
                 selectedRange = { start: 0, end: 100 };
             }
@@ -484,14 +491,14 @@
             document.getElementById('dateRangeContainer').style.display = 'block';
         }
         
-        // Get selected date range
+        // Get selected datetime range as Date objects (minute precision)
         function getSelectedDateRange() {
             const startDateInput = document.getElementById('selectedStartDate');
             const endDateInput = document.getElementById('selectedEndDate');
             if (!startDateInput.value || !endDateInput.value) return null;
             return {
-                start: startDateInput.value,
-                end: endDateInput.value
+                start: new Date(startDateInput.value),
+                end: new Date(endDateInput.value)
             };
         }
         function initMap() {
@@ -542,8 +549,8 @@
         function loadSampleData() {
             trackData = generateSampleData();
             
-            // Set up date range slider
-            const dates = trackData.map(d => new Date(d.timestamp));
+            // Set up datetime range slider from full datetimes
+            const dates = trackData.map(d => new Date(d.datetime || d.timestamp));
             const minDate = new Date(Math.min(...dates));
             const maxDate = new Date(Math.max(...dates));
             
@@ -668,8 +675,8 @@
                 
                 console.log(`Loaded ${trackData.length} GPS points from table: ${tableName}`);
                 
-                // Set up date range slider
-                const dates = trackData.map(d => new Date(d.timestamp));
+                // Set up datetime range slider from full datetimes
+                const dates = trackData.map(d => new Date(d.datetime || d.timestamp));
                 const minDate = new Date(Math.min(...dates));
                 const maxDate = new Date(Math.max(...dates));
                 
@@ -680,6 +687,12 @@
                 console.error('Error loading data from table:', error);
                 alert(`Error loading data from table: ${tableName}. Please check the table name and structure.`);
             }
+        }
+        
+        // Format a Date as a datetime-local string (YYYY-MM-DDTHH:MM) in local time
+        function toDatetimeLocal(date) {
+            const pad = n => String(n).padStart(2, '0');
+            return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
         }
         
         // Generate color for date
@@ -802,9 +815,10 @@
             // Clear existing polylines
             polylineGroup.clearLayers();
             
-            // Filter data by date range
+            // Filter data by datetime range (minute precision)
             const filteredData = trackData.filter(point => {
-                return point.timestamp >= startDate && point.timestamp <= endDate;
+                const dt = new Date(point.datetime || point.timestamp);
+                return dt >= startDate && dt <= endDate;
             });
             
             if (filteredData.length === 0) {
@@ -888,6 +902,19 @@
                 }
             });
             
+            // Add interactive point markers showing exact timestamps
+            filteredData.forEach(point => {
+                const pt = new Date(point.datetime || point.timestamp);
+                const marker = L.circleMarker([point.latitude, point.longitude], {
+                    radius: 3,
+                    color: '#333',
+                    weight: 1,
+                    fillColor: '#ffffff',
+                    fillOpacity: 0.8
+                }).bindTooltip(pt.toLocaleString(), { direction: 'top', sticky: true });
+                polylineGroup.addLayer(marker);
+            });
+            
             // Fit map to show all tracks
             if (polylineGroup.getLayers().length > 0) {
                 const group = L.featureGroup(polylineGroup.getLayers());
@@ -896,7 +923,7 @@
             
             // Update statistics
             document.getElementById('pointCount').textContent = `Points: ${totalPoints}`;
-            document.getElementById('dateRange').textContent = `Date Range: ${startDate} to ${endDate}`;
+            document.getElementById('dateRange').textContent = `Time Range: ${startDate.toLocaleString()} to ${endDate.toLocaleString()}`;
             document.getElementById('trackCount').textContent = `Tracks: ${Object.keys(dateGroups).length}`;
             document.getElementById('stats').style.display = 'block';
             document.getElementById('legend').style.display = allDates.length > 1 ? 'block' : 'none';
