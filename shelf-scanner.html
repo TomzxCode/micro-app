@@ -1,0 +1,2793 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0a0b0e">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Shelf — barcode to collection</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:ital,wght@0,400..700;1,400..700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0b0e;
+    --surface: #12141a;
+    --surface-2: #171a22;
+    --surface-3: #1e222c;
+    --line: #262b38;
+    --line-soft: #1c2029;
+    --text: #e9ecf3;
+    --muted: #8b93a7;
+    --faint: #5d6478;
+    --accent: #5eead4;
+    --accent-strong: #2dd4bf;
+    --accent-ink: #04231f;
+    --amber: #fbbf24;
+    --red: #fb7185;
+    --red-ink: #2b0710;
+    --green: #34d399;
+    --radius: 14px;
+    --shadow: 0 18px 50px rgba(0, 0, 0, .45);
+    --font: 'Instrument Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+    --mono: 'JetBrains Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  html { -webkit-text-size-adjust: 100%; }
+  button, .card, label.btn, .toast-action { touch-action: manipulation; }
+  body {
+    background:
+      radial-gradient(1100px 600px at 12% -10%, rgba(94, 234, 212, .07), transparent 60%),
+      radial-gradient(900px 500px at 100% 0%, rgba(251, 191, 36, .05), transparent 55%),
+      var(--bg);
+    color: var(--text);
+    font-family: var(--font);
+    min-height: 100dvh;
+    -webkit-font-smoothing: antialiased;
+    -webkit-tap-highlight-color: transparent;
+  }
+  button, input, select, textarea { font: inherit; color: inherit; }
+  button { cursor: pointer; }
+  h1, h2, h3, h4, p { margin: 0; }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  .mono { font-family: var(--mono); }
+  .muted { color: var(--muted); }
+  .hidden { display: none !important; }
+
+  /* ---------- top bar ---------- */
+  .appbar {
+    position: sticky; top: 0; z-index: 40;
+    display: flex; align-items: center; gap: 18px; flex-wrap: wrap;
+    padding: 12px clamp(12px, 2.5vw, 28px);
+    border-bottom: 1px solid var(--line-soft);
+    background: rgba(10, 11, 14, .82);
+    backdrop-filter: blur(14px) saturate(140%);
+  }
+  .brand { display: flex; align-items: center; gap: 11px; min-width: 0; }
+  .brand-mark {
+    display: grid; place-items: center; width: 38px; height: 38px; flex: 0 0 auto;
+    border-radius: 11px; background: linear-gradient(145deg, #14201f, #101418);
+    border: 1px solid #22423c; color: var(--accent);
+  }
+  .brand h1 { font-size: 1.12rem; font-weight: 700; letter-spacing: -.02em; line-height: 1.1; }
+  .brand p { font-family: var(--mono); font-size: .62rem; letter-spacing: .12em; text-transform: uppercase; color: var(--faint); margin-top: 2px; }
+
+  .stats { display: flex; gap: 8px; margin-left: auto; }
+  .stat {
+    display: flex; flex-direction: column; align-items: flex-end; line-height: 1.1;
+    padding: 5px 12px; border-radius: 10px; background: var(--surface); border: 1px solid var(--line-soft);
+  }
+  .stat b { font-size: .95rem; font-variant-numeric: tabular-nums; font-weight: 600; }
+  .stat small { font-size: .6rem; letter-spacing: .1em; text-transform: uppercase; color: var(--faint); margin-top: 3px; }
+  .appbar-actions { display: flex; gap: 8px; }
+
+  /* ---------- buttons ---------- */
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+    padding: 9px 14px; border-radius: 10px; border: 1px solid var(--line);
+    background: var(--surface-2); color: var(--text); font-size: .85rem; font-weight: 500;
+    transition: background .15s, border-color .15s, transform .1s, color .15s;
+    white-space: nowrap;
+  }
+  .btn:hover { background: var(--surface-3); border-color: #333b4c; }
+  .btn:active { transform: translateY(1px); }
+  .btn:focus-visible, .icon-btn:focus-visible, .card button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 600; }
+  .btn.primary:hover { background: #7df0dc; border-color: #7df0dc; }
+  .btn.danger { background: transparent; border-color: #4a2430; color: var(--red); }
+  .btn.danger:hover { background: rgba(251, 113, 133, .12); border-color: #6d2b3a; }
+  .btn.ghost { background: transparent; }
+  .btn.small { padding: 6px 11px; font-size: .78rem; border-radius: 8px; }
+  .btn[disabled] { opacity: .45; pointer-events: none; }
+  .icon-btn {
+    display: grid; place-items: center; width: 32px; height: 32px; border-radius: 8px;
+    border: 1px solid transparent; background: transparent; color: var(--muted);
+    transition: background .15s, color .15s;
+  }
+  .icon-btn:hover { background: var(--surface-3); color: var(--text); }
+
+  /* ---------- layout ---------- */
+  .layout {
+    display: grid; grid-template-columns: minmax(330px, 440px) minmax(0, 1fr);
+    gap: clamp(14px, 2vw, 24px); align-items: start;
+    padding: clamp(12px, 2.4vw, 26px);
+    max-width: 1440px; margin: 0 auto; width: 100%;
+  }
+  .pane { min-width: 0; }
+  .scan-pane { display: flex; flex-direction: column; gap: 12px; }
+
+  /* ---------- camera ---------- */
+  .viewport {
+    position: relative; width: 100%; aspect-ratio: 4 / 3; max-height: 46vh;
+    border-radius: var(--radius); overflow: hidden; background: #05060a;
+    border: 1px solid var(--line); box-shadow: var(--shadow);
+    isolation: isolate;
+  }
+  .viewport video { width: 100%; height: 100%; object-fit: cover; display: block; background: #05060a; }
+  .viewport::after {
+    content: ''; position: absolute; inset: 0; pointer-events: none;
+    box-shadow: inset 0 0 60px rgba(0, 0, 0, .6);
+    transition: box-shadow .2s, border-color .2s;
+    border: 2px solid transparent; border-radius: var(--radius);
+  }
+  .viewport.hit::after { border-color: var(--green); box-shadow: inset 0 0 60px rgba(52, 211, 153, .25); }
+  .viewport.miss::after { border-color: var(--red); box-shadow: inset 0 0 60px rgba(251, 113, 133, .22); }
+
+  .reticle { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; pointer-events: none; }
+  .band {
+    position: relative; width: 82%; height: 34%; max-height: 165px; min-height: 96px;
+    border-radius: 12px; box-shadow: 0 0 0 2000px rgba(3, 5, 9, .5);
+  }
+  .band .c { position: absolute; width: 26px; height: 26px; border: 3px solid var(--accent); opacity: .95; }
+  .band .tl { top: -2px; left: -2px; border-right: 0; border-bottom: 0; border-radius: 8px 0 0 0; }
+  .band .tr { top: -2px; right: -2px; border-left: 0; border-bottom: 0; border-radius: 0 8px 0 0; }
+  .band .bl { bottom: -2px; left: -2px; border-right: 0; border-top: 0; border-radius: 0 0 0 8px; }
+  .band .br { bottom: -2px; right: -2px; border-left: 0; border-top: 0; border-radius: 0 0 8px 0; }
+
+  .cam-state {
+    position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center;
+    justify-content: center; gap: 12px; text-align: center; padding: 26px;
+    background: rgba(6, 8, 12, .9); backdrop-filter: blur(6px);
+  }
+  .cam-state p { font-size: .85rem; color: var(--muted); max-width: 30ch; line-height: 1.5; }
+  .cam-state .big { font-size: 1rem; color: var(--text); font-weight: 600; }
+  .spinner {
+    width: 26px; height: 26px; border-radius: 50%;
+    border: 2px solid rgba(94, 234, 212, .18); border-top-color: var(--accent);
+    animation: spin .8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .cam-toast {
+    position: absolute; left: 50%; bottom: 12px; transform: translateX(-50%);
+    padding: 6px 12px; border-radius: 999px; font-family: var(--mono); font-size: .7rem;
+    background: rgba(6, 8, 12, .78); border: 1px solid var(--line); color: var(--muted);
+    white-space: nowrap; max-width: 92%; overflow: hidden; text-overflow: ellipsis;
+  }
+
+  /* ---------- scan controls ---------- */
+  .scan-controls { display: flex; gap: 8px; flex-wrap: wrap; }
+  .scan-controls .btn { flex: 1 1 auto; }
+  .manual { display: flex; gap: 8px; }
+  .manual input {
+    flex: 1; min-width: 0; padding: 11px 14px; border-radius: 10px;
+    background: var(--surface); border: 1px solid var(--line); color: var(--text);
+    font-family: var(--mono); font-size: .85rem; letter-spacing: .02em;
+  }
+  .manual input::placeholder { color: var(--faint); letter-spacing: 0; font-family: var(--font); }
+  .manual input:focus { outline: none; border-color: #35655d; box-shadow: 0 0 0 3px rgba(94, 234, 212, .1); }
+  .manual-toggle { display: none; }
+
+  /* ---------- last scan strip ---------- */
+  .lastscan {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px; border-radius: 12px;
+    background: linear-gradient(160deg, #141b1e, var(--surface));
+    border: 1px solid #24433e;
+    box-shadow: 0 6px 22px rgba(0, 0, 0, .35);
+  }
+  .lastscan .ls-info { min-width: 0; flex: 1; }
+  .lastscan .ls-label {
+    font-family: var(--mono); font-size: .58rem; letter-spacing: .14em; text-transform: uppercase;
+    color: var(--accent); display: flex; align-items: center; gap: 6px;
+  }
+  .lastscan .ls-label::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
+  .lastscan.loading .ls-label::before { animation: pulse 1s ease-in-out infinite; }
+  @keyframes pulse { 50% { opacity: .25; } }
+  .lastscan .ls-title {
+    font-size: .86rem; font-weight: 600; margin-top: 3px; line-height: 1.25;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .lastscan .ls-code { font-family: var(--mono); font-size: .68rem; color: var(--faint); margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .lastscan .btn.danger { background: rgba(251, 113, 133, .08); flex: 0 0 auto; }
+  .kbd-hint { font-size: .66rem; color: var(--faint); text-align: center; }
+  kbd {
+    font-family: var(--mono); font-size: .62rem; padding: 1px 5px; border-radius: 4px;
+    background: var(--surface-3); border: 1px solid var(--line); color: var(--muted);
+  }
+
+  /* ---------- collection ---------- */
+  .collection { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+  .coll-bar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .coll-picker {
+    display: inline-flex; align-items: center; gap: 8px; min-width: 0; max-width: 100%;
+    padding: 5px 9px 5px 8px; margin-left: -8px;
+    border-radius: 9px; border: 1px solid transparent; background: transparent;
+    color: var(--text); font-size: 1rem; font-weight: 700; letter-spacing: -.01em;
+    transition: background .15s, border-color .15s;
+  }
+  .coll-picker:hover { background: var(--surface-2); border-color: var(--line-soft); }
+  .coll-picker > svg:first-child { color: var(--muted); flex: 0 0 auto; }
+  .coll-picker .coll-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .coll-picker .chevron { color: var(--faint); flex: 0 0 auto; }
+  .count-pill {
+    font-family: var(--mono); font-size: .68rem; font-weight: 500; padding: 2px 8px;
+    border-radius: 999px; background: var(--surface-2); border: 1px solid var(--line); color: var(--muted);
+  }
+  .coll-tools { display: flex; gap: 8px; margin-left: auto; flex: 1 1 260px; justify-content: flex-end; }
+  .search-wrap { position: relative; flex: 1 1 180px; max-width: 300px; }
+  .search-wrap svg { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--faint); pointer-events: none; }
+  .search-wrap input {
+    width: 100%; padding: 9px 12px 9px 32px; border-radius: 9px;
+    background: var(--surface); border: 1px solid var(--line); font-size: .82rem;
+  }
+  .search-wrap input:focus { outline: none; border-color: #35655d; box-shadow: 0 0 0 3px rgba(94, 234, 212, .08); }
+  .search-wrap input::placeholder { color: var(--faint); }
+  select.sort {
+    padding: 9px 10px; border-radius: 9px; background: var(--surface);
+    border: 1px solid var(--line); font-size: .8rem; color: var(--muted);
+  }
+  select.sort:focus { outline: none; border-color: #35655d; }
+
+  .list { display: flex; flex-direction: column; gap: 9px; min-width: 0; }
+
+  .card {
+    display: flex; gap: 13px; align-items: flex-start;
+    padding: 11px; border-radius: 13px;
+    background: var(--surface); border: 1px solid var(--line-soft);
+    transition: border-color .15s, background .15s;
+    animation: cardIn .24s ease-out;
+    min-width: 0;
+  }
+  @keyframes cardIn { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
+  .card:hover { border-color: var(--line); background: var(--surface-2); }
+  .card.flash-ok { animation: flashOk .9s ease-out; }
+  @keyframes flashOk {
+    0% { border-color: var(--green); box-shadow: 0 0 0 3px rgba(52, 211, 153, .16); }
+    100% { border-color: var(--line-soft); box-shadow: none; }
+  }
+  .card.flash-warn { animation: flashWarn .7s ease-out 2; }
+  @keyframes flashWarn {
+    0% { border-color: var(--amber); box-shadow: 0 0 0 3px rgba(251, 191, 36, .14); }
+    100% { border-color: var(--line-soft); box-shadow: none; }
+  }
+
+  .thumb {
+    width: 54px; height: 78px; flex: 0 0 auto; border-radius: 7px; overflow: hidden;
+    background: var(--surface-3); display: grid; place-items: center; position: relative;
+  }
+  .thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .thumb.empty { background: linear-gradient(150deg, #1b2029, #14171e); color: #3a4254; }
+  .thumb.empty svg { width: 22px; height: 22px; }
+
+  .card .body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+  .card .title-row { display: flex; align-items: flex-start; gap: 8px; }
+  .card h3 {
+    font-size: .9rem; font-weight: 600; line-height: 1.3; letter-spacing: -.005em;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+    word-break: break-word;
+  }
+  .card .by { font-size: .76rem; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .card .sub { font-size: .7rem; color: var(--faint); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .card .code { font-family: var(--mono); font-size: .66rem; color: #5f6b7e; margin-top: 4px; display: flex; gap: 8px; flex-wrap: wrap; align-items: baseline; min-width: 0; }
+  .card .code > span:first-child { flex: 0 1 auto; min-width: 0; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .card .code .dot { opacity: .5; }
+
+  .badge {
+    font-family: var(--mono); font-size: .56rem; letter-spacing: .09em; text-transform: uppercase;
+    padding: 2px 6px; border-radius: 5px; border: 1px solid var(--line); color: var(--muted);
+    background: var(--surface-2); flex: 0 0 auto; margin-top: 1px;
+  }
+  .badge.book { color: #8fe9d8; border-color: #245049; background: rgba(94, 234, 212, .07); }
+  .badge.product { color: #f2cf87; border-color: #514020; background: rgba(251, 191, 36, .07); }
+  .badge.qr { color: #c9b6ff; border-color: #403469; background: rgba(167, 139, 250, .08); }
+  .badge.warn { color: var(--amber); border-color: #514020; background: rgba(251, 191, 36, .08); }
+  .badge.err { color: var(--red); border-color: #4a2430; background: rgba(251, 113, 133, .08); }
+
+  .card-actions { display: flex; flex-direction: column; gap: 2px; flex: 0 0 auto; }
+  .card-actions .icon-btn { width: 30px; height: 28px; }
+  .card-actions .icon-btn.del:hover { color: var(--red); background: rgba(251, 113, 133, .1); }
+
+  .retry-btn {
+    align-self: flex-start; margin-top: 5px; padding: 4px 9px; font-size: .68rem;
+    border-radius: 6px; border: 1px solid var(--line); background: transparent; color: var(--muted);
+    display: inline-flex; gap: 5px; align-items: center;
+  }
+  .retry-btn:hover { color: var(--text); background: var(--surface-3); }
+
+  .skeleton { display: block; border-radius: 5px; background: linear-gradient(90deg, #1a1e27 25%, #232936 50%, #1a1e27 75%); background-size: 200% 100%; animation: shimmer 1.3s linear infinite; }
+  @keyframes shimmer { to { background-position: -200% 0; } }
+  .skeleton.line { height: 11px; width: 68%; }
+  .skeleton.line.short { width: 42%; }
+
+  .empty-state {
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px;
+    padding: 56px 24px; text-align: center; border: 1px dashed var(--line); border-radius: var(--radius);
+    color: var(--muted); background: rgba(18, 20, 26, .35);
+  }
+  .empty-state svg { color: #2f3646; }
+  .empty-state h3 { font-size: .95rem; color: var(--text); font-weight: 600; }
+  .empty-state p { font-size: .8rem; max-width: 34ch; line-height: 1.55; }
+
+  /* ---------- toasts ---------- */
+  .toasts {
+    position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%);
+    z-index: 80; display: flex; flex-direction: column; gap: 8px; align-items: center;
+    width: min(520px, calc(100vw - 24px)); pointer-events: none;
+  }
+  .toast {
+    pointer-events: auto; display: flex; align-items: center; gap: 12px;
+    padding: 10px 12px 10px 15px; border-radius: 11px;
+    background: #1b2029; border: 1px solid var(--line); box-shadow: var(--shadow);
+    font-size: .82rem; width: fit-content; max-width: 100%;
+    animation: toastIn .2s ease-out;
+  }
+  @keyframes toastIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+  .toast.out { opacity: 0; transform: translateY(6px); transition: opacity .2s, transform .2s; }
+  .toast span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+  .toast .toast-action {
+    border: 0; background: transparent; color: var(--accent); font-weight: 600;
+    font-size: .78rem; padding: 3px 4px; border-radius: 5px; flex: 0 0 auto;
+  }
+  .toast .toast-action:hover { text-decoration: underline; }
+  .toast.error { border-color: #4a2430; }
+  .toast.error span { color: #ffd7dd; }
+  .toast.warn { border-color: #514020; }
+  .toast.warn span { color: #ffe8b6; }
+  .toast.success { border-color: #245049; }
+
+  /* ---------- dialogs ---------- */
+  dialog.modal {
+    width: min(620px, calc(100vw - 24px)); max-height: min(88dvh, 900px);
+    padding: 0; border-radius: 16px; border: 1px solid var(--line);
+    background: var(--surface); color: var(--text); box-shadow: var(--shadow);
+    overflow: hidden;
+  }
+  dialog.modal::backdrop { background: rgba(4, 5, 9, .72); backdrop-filter: blur(3px); }
+  dialog.modal[open] { display: flex; flex-direction: column; animation: dlgIn .18s ease-out; }
+  @keyframes dlgIn { from { opacity: 0; transform: translateY(10px) scale(.99); } to { opacity: 1; transform: none; } }
+  dialog.small { width: min(420px, calc(100vw - 24px)); }
+
+  .modal-head {
+    display: flex; align-items: center; gap: 10px; padding: 14px 16px;
+    border-bottom: 1px solid var(--line-soft); flex: 0 0 auto;
+  }
+  .modal-head h2 { font-size: .98rem; font-weight: 700; }
+  .modal-head .spacer { flex: 1; }
+  .modal-body { padding: 16px; overflow-y: auto; display: flex; flex-direction: column; gap: 16px; }
+  .modal-foot { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; padding: 14px 16px; border-top: 1px solid var(--line-soft); }
+
+  .detail-top { display: flex; gap: 16px; align-items: flex-start; }
+  .detail-cover {
+    width: 108px; flex: 0 0 auto; aspect-ratio: 2 / 3; border-radius: 9px; overflow: hidden;
+    background: var(--surface-3); display: grid; place-items: center; color: #3a4254;
+  }
+  .detail-cover img { width: 100%; height: 100%; object-fit: cover; }
+  .detail-head { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 5px; }
+  .detail-head h2 { font-size: 1.16rem; line-height: 1.28; font-weight: 700; letter-spacing: -.015em; }
+  .detail-head .by { font-size: .87rem; color: var(--muted); }
+  .chips { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 4px; }
+  .chip { font-size: .65rem; padding: 2px 7px; border-radius: 999px; background: var(--surface-3); color: var(--muted); border: 1px solid var(--line-soft); }
+
+  .facts { display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; margin: 0; }
+  .facts dt { font-size: .7rem; text-transform: uppercase; letter-spacing: .08em; color: var(--faint); font-family: var(--mono); padding-top: 1px; }
+  .facts dd { margin: 0; font-size: .82rem; color: var(--text); word-break: break-word; }
+
+  .section { display: flex; flex-direction: column; gap: 7px; }
+  .section-label { font-family: var(--mono); font-size: .6rem; letter-spacing: .12em; text-transform: uppercase; color: var(--faint); }
+  .desc-text { font-size: .84rem; line-height: 1.65; color: #c3c9d6; white-space: pre-line; }
+  .desc-text.clamped { display: -webkit-box; -webkit-line-clamp: 6; -webkit-box-orient: vertical; overflow: hidden; }
+  .text-link { background: none; border: 0; padding: 0; color: var(--accent); font-size: .78rem; text-align: left; align-self: flex-start; }
+  .text-link:hover { text-decoration: underline; }
+
+  textarea {
+    width: 100%; min-height: 64px; resize: vertical; padding: 10px 12px; border-radius: 9px;
+    background: var(--bg); border: 1px solid var(--line); color: var(--text); font-size: .82rem;
+  }
+  textarea:focus { outline: none; border-color: #35655d; }
+
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .field { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+  .field.wide { grid-column: 1 / -1; }
+  .field label { font-size: .7rem; color: var(--muted); }
+  .field input {
+    padding: 8px 10px; border-radius: 8px; background: var(--bg);
+    border: 1px solid var(--line); font-size: .82rem; min-width: 0;
+  }
+  .field input:focus { outline: none; border-color: #35655d; }
+
+  .lib-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+  .lib-stat { padding: 10px 12px; border-radius: 10px; background: var(--bg); border: 1px solid var(--line-soft); }
+  .lib-stat b { display: block; font-size: 1.2rem; font-variant-numeric: tabular-nums; }
+  .lib-stat small { font-size: .6rem; text-transform: uppercase; letter-spacing: .1em; color: var(--faint); }
+  .lib-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .lib-actions .span2 { grid-column: 1 / -1; }
+
+  .move-select {
+    padding: 9px 10px; border-radius: 9px; background: var(--bg);
+    border: 1px solid var(--line); font-size: .84rem; color: var(--text); max-width: 100%;
+  }
+  .move-select:focus { outline: none; border-color: #35655d; }
+
+  .new-collection { display: flex; gap: 8px; }
+  .new-collection input {
+    flex: 1; min-width: 0; padding: 10px 12px; border-radius: 9px;
+    background: var(--bg); border: 1px solid var(--line); font-size: .85rem;
+  }
+  .new-collection input::placeholder { color: var(--faint); }
+  .new-collection input:focus { outline: none; border-color: #35655d; }
+  .new-collection .btn { padding: 8px 14px; }
+
+  .col-list { display: flex; flex-direction: column; gap: 6px; }
+  .col-row {
+    display: flex; align-items: center; gap: 3px;
+    border-radius: 10px; border: 1px solid var(--line-soft); background: var(--bg);
+    padding: 3px;
+  }
+  .col-row.active { border-color: #2b5a52; background: rgba(94, 234, 212, .05); }
+  .col-pick {
+    flex: 1; min-width: 0; display: flex; align-items: center; gap: 9px;
+    padding: 9px 10px; border: 0; border-radius: 8px; background: transparent;
+    color: var(--text); text-align: left; font-size: .88rem;
+  }
+  .col-pick:hover { background: var(--surface-2); }
+  .col-pick .col-name {
+    flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500;
+  }
+  .col-row.active .col-pick .col-name { font-weight: 600; }
+  .col-pick .check { color: var(--accent); flex: 0 0 auto; }
+  .col-row .icon-btn:hover { color: var(--red); }
+  .col-rename-input {
+    flex: 1; min-width: 0; padding: 7px 9px; border-radius: 7px;
+    background: var(--surface); border: 1px solid #35655d; font-size: .88rem;
+  }
+  .col-rename-input:focus { outline: none; }
+  .hint { font-size: .72rem; color: var(--faint); line-height: 1.5; }
+
+  /* ---------- responsive: phone first ---------- */
+  @media (max-width: 900px) {
+    /* A flex column (not grid) so the camera can stay sticky for the whole page. */
+    .layout {
+      display: flex; flex-direction: column; gap: 10px; align-items: stretch;
+      padding: 10px 12px calc(112px + env(safe-area-inset-bottom));
+    }
+
+    .appbar {
+      position: static; flex-wrap: nowrap;
+      padding: calc(8px + env(safe-area-inset-top)) 12px 9px;
+      gap: 8px;
+    }
+    .brand { gap: 8px; }
+    .brand p { display: none; }
+    .brand h1 { font-size: 1.04rem; }
+    .brand-mark { width: 34px; height: 34px; border-radius: 9px; }
+    .stats { gap: 6px; }
+    .stat { padding: 4px 8px; border-radius: 8px; }
+    .stat:nth-child(2) { display: none; }
+    .stat b { font-size: .88rem; }
+    .stat small { font-size: .54rem; }
+    .appbar-actions { flex: 0 0 auto; }
+    .appbar-actions .btn { padding: 0; width: 42px; height: 42px; }
+    .btn-label { display: none; }
+
+    /* Camera stays on screen while the collection scrolls under it. */
+    .scan-pane {
+      position: sticky; top: 0; z-index: 30;
+      background: var(--bg);
+      padding-bottom: 6px;
+      border-bottom: 1px solid var(--line-soft);
+      box-shadow: 0 14px 20px -16px rgba(0, 0, 0, .9);
+    }
+    .viewport {
+      aspect-ratio: 16 / 10; max-height: 34vh; min-height: 170px;
+      border-radius: 12px;
+    }
+
+    /* Every control is at least 44px tall, so it is thumb-friendly. */
+    .scan-controls { gap: 6px; }
+    .scan-controls .btn { min-height: 44px; padding: 8px 10px; font-size: .8rem; }
+
+    /* Manual entry is a fallback, hidden until asked for. */
+    .manual { display: none; margin-top: 0; }
+    .manual.open { display: flex; }
+    .manual input { padding: 12px; font-size: 16px; }
+    .manual .btn { min-height: 44px; }
+    .scan-controls .btn { flex: 1 1 auto; min-width: 44px; }
+    .scan-controls .manual-toggle {
+      display: inline-flex; font-size: .8rem; color: var(--muted);
+      background: transparent; border-style: dashed;
+    }
+    .scan-controls .manual-toggle[aria-expanded="true"] { color: var(--text); border-color: #35655d; }
+
+    /* 16px keeps iOS from zooming the page when a field gets focus. */
+    .search-wrap input, select.sort { font-size: 16px; padding-top: 10px; padding-bottom: 10px; }
+    select.sort { padding-left: 9px; max-width: 124px; }
+
+    /* Last scan is pinned to the bottom: one tap fixes a wrong scan
+       no matter how far down the collection the user has scrolled. */
+    .lastscan {
+      position: fixed; left: 8px; right: 8px; z-index: 60;
+      bottom: calc(8px + env(safe-area-inset-bottom));
+      padding: 8px 8px 8px 12px; border-radius: 14px;
+      backdrop-filter: blur(16px);
+      background: linear-gradient(160deg, rgba(20, 27, 30, .97), rgba(18, 20, 26, .98));
+      box-shadow: 0 12px 34px rgba(0, 0, 0, .6);
+    }
+    .lastscan .btn.danger { min-height: 44px; padding: 8px 14px; }
+    .lastscan .ls-title { font-size: .84rem; }
+    .toasts { bottom: calc(94px + env(safe-area-inset-bottom)); }
+    .kbd-hint { display: none; }
+
+    .coll-picker { font-size: .98rem; padding: 5px 8px; }
+    .coll-tools { flex: 1 1 100%; justify-content: stretch; }
+    .search-wrap { max-width: none; }
+    .col-pick { min-height: 46px; }
+    .col-row .icon-btn { width: 38px; height: 38px; }
+    .new-collection input, .move-select { font-size: 16px; }
+    .new-collection .btn { min-height: 44px; }
+    .move-select { width: 100%; min-height: 44px; }
+
+    .card { padding: 9px; gap: 11px; }
+    .thumb { width: 48px; height: 70px; }
+    .card .title-row { gap: 6px; }
+    .card-actions { gap: 4px; }
+    .card-actions .icon-btn {
+      width: 40px; height: 40px; border: 1px solid var(--line-soft);
+      background: var(--surface-2); color: var(--muted);
+    }
+    .card-actions .icon-btn.del { color: #b8838d; }
+    .empty-state { padding: 38px 20px; }
+
+    /* Dialogs behave like bottom sheets on a phone. */
+    dialog.modal {
+      width: 100vw; max-width: 100vw; max-height: 92dvh;
+      margin: auto auto 0; border-radius: 18px 18px 0 0;
+      padding-bottom: env(safe-area-inset-bottom);
+    }
+    dialog.small { width: 100vw; max-width: 100vw; }
+    .modal-head { padding: 12px 14px; }
+    .modal-head .icon-btn { width: 40px; height: 40px; }
+    .modal-foot .btn, .lib-actions .btn { min-height: 44px; }
+    .detail-cover { width: 88px; }
+  }
+  @media (max-width: 460px) {
+    .lib-stats { grid-template-columns: repeat(2, 1fr); }
+    .form-grid { grid-template-columns: 1fr; }
+    .detail-cover { width: 78px; }
+    .detail-head h2 { font-size: 1.04rem; }
+    .viewport { min-height: 150px; }
+  }
+  @media (max-width: 380px) {
+    .scan-controls .btn { font-size: .72rem; padding: 8px 6px; }
+    .stat { padding: 4px 6px; }
+    .brand-mark { width: 30px; height: 30px; }
+    .brand h1 { font-size: .98rem; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; }
+  }
+</style>
+</head>
+<body>
+
+<header class="appbar">
+  <div class="brand">
+    <div class="brand-mark" aria-hidden="true">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+        <path d="M3 5v14M7 5v14M11 5v9M15 5v14M19 5v9M21 5v14"/>
+      </svg>
+    </div>
+    <div>
+      <h1>Shelf</h1>
+      <p>Barcode &amp; QR to collection</p>
+    </div>
+  </div>
+
+  <div class="stats" aria-live="polite">
+    <div class="stat"><b id="statTotal">0</b><small>Total</small></div>
+    <div class="stat"><b id="statBooks">0</b><small>Books</small></div>
+    <div class="stat"><b id="statToday">0</b><small>Today</small></div>
+  </div>
+
+  <div class="appbar-actions">
+    <button class="btn ghost" id="btnLibrary" type="button" aria-label="Open library">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+      <span class="btn-label">Library</span>
+    </button>
+  </div>
+</header>
+
+<main class="layout">
+  <section class="pane scan-pane" aria-label="Scanner">
+    <div class="viewport" id="viewport">
+      <video id="video" playsinline muted autoplay></video>
+
+      <div class="reticle" aria-hidden="true">
+        <div class="band">
+          <span class="c tl"></span><span class="c tr"></span><span class="c bl"></span><span class="c br"></span>
+        </div>
+      </div>
+
+      <div class="cam-state" id="camState">
+        <div class="spinner" id="camSpinner"></div>
+        <p class="big" id="camStateTitle">Starting camera…</p>
+        <p id="camStateMsg">Allow camera access to scan barcodes.</p>
+        <button class="btn primary small hidden" id="btnCamRetry" type="button">Try again</button>
+      </div>
+
+      <div class="cam-toast" id="camHint">Hold a barcode or QR code inside the frame</div>
+    </div>
+
+    <div class="scan-controls">
+      <button class="btn" id="btnCam" type="button">Pause camera</button>
+      <button class="btn hidden" id="btnTorch" type="button">Torch</button>
+      <button class="btn" id="btnSound" type="button" aria-pressed="true" title="Scan sound">Sound on</button>
+      <button class="btn manual-toggle" id="manualToggle" type="button" aria-expanded="false" aria-controls="manualForm">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 7h18M3 12h18M3 17h10"/></svg>
+        <span id="manualToggleLabel">Type code</span>
+      </button>
+    </div>
+
+    <form class="manual" id="manualForm" autocomplete="off">
+      <input id="manualCode" type="text" inputmode="numeric" placeholder="Type a barcode or ISBN" aria-label="Barcode or ISBN" />
+      <button class="btn" type="submit">Add</button>
+    </form>
+
+    <div class="lastscan hidden" id="lastScan">
+      <div class="ls-info">
+        <div class="ls-label" id="lsLabel">Last scan</div>
+        <div class="ls-title" id="lsTitle"></div>
+        <div class="ls-code mono" id="lsCode"></div>
+      </div>
+      <button class="btn danger" id="btnRemoveLast" type="button">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18"/><path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+        Remove
+      </button>
+    </div>
+
+    <p class="kbd-hint">Press <kbd>Backspace</kbd> to remove the last scan · <kbd>Z</kbd> to undo</p>
+  </section>
+
+  <section class="pane collection" aria-label="Collection">
+    <div class="coll-bar">
+      <button class="coll-picker" id="collPicker" type="button" aria-haspopup="dialog" title="Switch or manage collections">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+        <span class="coll-name" id="collName">My shelf</span>
+        <span class="count-pill" id="countPill">0</span>
+        <svg class="chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="m6 9 6 6 6-6"/></svg>
+      </button>
+      <div class="coll-tools">
+        <div class="search-wrap">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.2-3.2"/></svg>
+          <input id="search" type="search" placeholder="Search collection" aria-label="Search collection by title, author or barcode" />
+        </div>
+        <select class="sort" id="sort" aria-label="Sort collection">
+          <option value="recent">Newest</option>
+          <option value="oldest">Oldest</option>
+          <option value="title">A–Z</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="list" id="list"></div>
+
+    <div class="empty-state" id="empty">
+      <svg width="42" height="42" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><path d="M3 5v14M7 5v14M11 5v9M15 5v14M19 5v9"/></svg>
+      <h3 id="emptyTitle">Your shelf is empty</h3>
+      <p id="emptyText">Point the camera at a barcode or QR code. It lands in this collection, and you can keep scanning the next one right away.</p>
+    </div>
+  </section>
+</main>
+
+<div class="toasts" id="toasts" aria-live="polite" aria-atomic="false"></div>
+
+<!-- Detail / edit dialog -->
+<dialog class="modal" id="detailDialog">
+  <div class="modal-head">
+    <span class="badge" id="dBadge">Book</span>
+    <div class="spacer"></div>
+    <button class="icon-btn" id="dClose" type="button" aria-label="Close">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+    </button>
+  </div>
+
+  <div class="modal-body">
+    <div class="detail-top">
+      <div class="detail-cover" id="dCover"></div>
+      <div class="detail-head">
+        <h2 id="dTitle">—</h2>
+        <p class="by" id="dBy"></p>
+        <div class="chips" id="dChips"></div>
+      </div>
+    </div>
+
+    <div class="section" id="dDescSection">
+      <div class="section-label">About</div>
+      <p class="desc-text clamped" id="dDesc">No description available.</p>
+      <button class="text-link hidden" id="dDescMore" type="button">Show more</button>
+    </div>
+
+    <dl class="facts" id="dFacts"></dl>
+
+    <div class="section">
+      <div class="section-label">Collection</div>
+      <select class="move-select" id="dMove" aria-label="Move this item to a collection"></select>
+    </div>
+
+    <div class="section">
+      <div class="section-label">Notes</div>
+      <textarea id="dNotes" placeholder="Condition, where it lives, lent to…"></textarea>
+      <button class="btn small" id="dSaveNotes" type="button" style="align-self:flex-start">Save notes</button>
+    </div>
+
+    <div class="section hidden" id="dEditForm">
+      <div class="section-label">Fix details</div>
+      <div class="form-grid">
+        <div class="field wide"><label for="eTitle">Title</label><input id="eTitle" type="text" /></div>
+        <div class="field wide"><label for="eAuthors">Author / brand</label><input id="eAuthors" type="text" /></div>
+        <div class="field"><label for="ePublisher">Publisher</label><input id="ePublisher" type="text" /></div>
+        <div class="field"><label for="eYear">Year</label><input id="eYear" type="text" inputmode="numeric" /></div>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:2px">
+        <button class="btn small primary" id="eSave" type="button">Save details</button>
+        <button class="btn small ghost" id="eCancel" type="button">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-foot">
+    <button class="btn ghost small" id="dEdit" type="button">Fix details</button>
+    <a class="btn ghost small hidden" id="dLink" target="_blank" rel="noopener noreferrer">Open source</a>
+    <div style="flex:1"></div>
+    <button class="btn danger small" id="dDelete" type="button">Remove</button>
+  </div>
+</dialog>
+
+<!-- Collections dialog -->
+<dialog class="modal" id="collectionsDialog">
+  <div class="modal-head">
+    <h2>Collections</h2>
+    <div class="spacer"></div>
+    <button class="icon-btn" id="colClose" type="button" aria-label="Close">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+    </button>
+  </div>
+  <div class="modal-body">
+    <form class="new-collection" id="newCollectionForm" autocomplete="off">
+      <input id="newCollectionName" type="text" maxlength="40" placeholder="New collection name" aria-label="New collection name" />
+      <button class="btn primary" type="submit">Create</button>
+    </form>
+    <p class="hint">Scans go into the collection selected here. Pick one to switch to it.</p>
+    <div class="col-list" id="collectionList"></div>
+  </div>
+</dialog>
+
+<!-- Library dialog -->
+<dialog class="modal" id="libraryDialog">
+  <div class="modal-head">
+    <h2>Library</h2>
+    <div class="spacer"></div>
+    <button class="icon-btn" id="libClose" type="button" aria-label="Close">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+    </button>
+  </div>
+  <div class="modal-body">
+    <div class="lib-stats">
+      <div class="lib-stat"><b id="libTotal">0</b><small>Total</small></div>
+      <div class="lib-stat"><b id="libBooks">0</b><small>Books</small></div>
+      <div class="lib-stat"><b id="libProducts">0</b><small>Products</small></div>
+      <div class="lib-stat"><b id="libUnknown">0</b><small>Unresolved</small></div>
+    </div>
+    <p class="hint">Counts and exports cover all collections.</p>
+
+    <div class="section">
+      <div class="section-label">Export</div>
+      <div class="lib-actions">
+        <button class="btn" id="btnExportCsv" type="button">Download CSV</button>
+        <button class="btn" id="btnExportJson" type="button">Download JSON</button>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-label">Backup</div>
+      <div class="lib-actions">
+        <label class="btn ghost span2" for="importFile" style="cursor:pointer">Import JSON backup
+          <input id="importFile" type="file" accept="application/json,.json" hidden />
+        </label>
+      </div>
+      <p class="hint">Import merges by collection name and barcode. Existing entries are kept.</p>
+    </div>
+
+    <div class="section">
+      <div class="section-label">Danger zone</div>
+      <div class="lib-actions">
+        <button class="btn danger span2" id="btnClearAll" type="button">Clear this collection</button>
+      </div>
+    </div>
+
+    <p class="hint">Everything is saved in this browser's local storage. Nothing is uploaded except the barcode used for the metadata lookup.</p>
+  </div>
+</dialog>
+
+<!-- Confirm dialog -->
+<dialog class="modal small" id="confirmDialog">
+  <div class="modal-body">
+    <h2 id="confirmTitle" style="font-size:1rem">Are you sure?</h2>
+    <p class="muted" id="confirmMsg" style="font-size:.85rem;line-height:1.55"></p>
+  </div>
+  <div class="modal-foot">
+    <button class="btn ghost small" id="confirmNo" type="button">Cancel</button>
+    <button class="btn danger small" id="confirmYes" type="button">Confirm</button>
+  </div>
+</dialog>
+
+<script src="https://unpkg.com/@zxing/library@0.21.3/umd/index.min.js"></script>
+<script>
+(() => {
+  'use strict';
+
+  /* ------------------------------------------------------------------ *
+   * State & storage
+   * ------------------------------------------------------------------ */
+
+  const STORE_KEY = 'shelf.v2';
+  const LEGACY_KEY = 'shelf.v1';
+  const state = {
+    collections: [],
+    activeId: null,
+    settings: { sound: true },
+  };
+
+  const cancelToken = new Set();      // item ids whose lookup should be ignored
+  const recentScans = new Map();       // code -> timestamp (debounce repeated frames)
+  const lookupCache = new Map();       // code -> meta | null
+  const pendingLookups = new Map();    // code -> Promise
+  let lastDeleted = null;              // { item, index, collectionId }
+  let undoToastClose = null;
+
+  function newCollection(name = 'My shelf') {
+    return { id: uid(), name, createdAt: Date.now(), items: [] };
+  }
+
+  function activeCollection() {
+    let col = state.collections.find((c) => c.id === state.activeId);
+    if (!col) {
+      col = state.collections[0];
+      if (!col) {
+        col = newCollection();
+        state.collections.push(col);
+      }
+      state.activeId = col.id;
+    }
+    return col;
+  }
+
+  function currentItems() {
+    return activeCollection().items;
+  }
+
+  function allItems() {
+    return state.collections.reduce((acc, c) => acc.concat(c.items), []);
+  }
+
+  function locate(id) {
+    for (const collection of state.collections) {
+      const index = collection.items.findIndex((i) => i.id === id);
+      if (index >= 0) return { collection, index, item: collection.items[index] };
+    }
+    return null;
+  }
+
+  function load() {
+    try {
+      const raw = localStorage.getItem(STORE_KEY);
+      if (raw) {
+        const data = JSON.parse(raw);
+        if (Array.isArray(data.collections)) {
+          state.collections = data.collections
+            .filter((c) => c && typeof c === 'object' && Array.isArray(c.items))
+            .map((c) => ({
+              id: typeof c.id === 'string' ? c.id : uid(),
+              name: typeof c.name === 'string' && c.name.trim() ? c.name.trim().slice(0, 40) : 'Untitled',
+              createdAt: Number.isFinite(c.createdAt) ? c.createdAt : Date.now(),
+              items: c.items.filter(isValidItem),
+            }));
+        }
+        state.activeId = typeof data.activeId === 'string' ? data.activeId : null;
+        if (data.settings && typeof data.settings === 'object') {
+          state.settings = { ...state.settings, ...data.settings };
+        }
+        if (state.collections.length) return;
+      }
+
+      // One-time upgrade from the single-collection format.
+      const legacy = localStorage.getItem(LEGACY_KEY);
+      if (legacy) {
+        const data = JSON.parse(legacy);
+        const col = newCollection();
+        if (Array.isArray(data.items)) col.items = data.items.filter(isValidItem);
+        state.collections = [col];
+        state.activeId = col.id;
+        if (data.settings && typeof data.settings === 'object') {
+          state.settings = { ...state.settings, ...data.settings };
+        }
+        if (save()) localStorage.removeItem(LEGACY_KEY);
+        return;
+      }
+    } catch (err) {
+      console.warn('Could not read saved collections', err);
+    }
+
+    const col = newCollection();
+    state.collections = [col];
+    state.activeId = col.id;
+  }
+
+  function save() {
+    try {
+      localStorage.setItem(STORE_KEY, JSON.stringify({
+        v: 2,
+        collections: state.collections,
+        activeId: activeCollection().id,
+        settings: state.settings,
+      }));
+      return true;
+    } catch (err) {
+      pushToast('Could not save locally (storage full or blocked)', { tone: 'error', duration: 7000 });
+      return false;
+    }
+  }
+
+  function isValidItem(it) {
+    return it && typeof it === 'object' && typeof it.id === 'string' && typeof it.code === 'string' && typeof it.scannedAt === 'number';
+  }
+
+  /* ------------------------------------------------------------------ *
+   * Small helpers
+   * ------------------------------------------------------------------ */
+
+  const $ = (sel) => document.querySelector(sel);
+
+  const el = {
+    video: $('#video'),
+    viewport: $('#viewport'),
+    camState: $('#camState'),
+    camSpinner: $('#camSpinner'),
+    camStateTitle: $('#camStateTitle'),
+    camStateMsg: $('#camStateMsg'),
+    camRetry: $('#btnCamRetry'),
+    camHint: $('#camHint'),
+    btnCam: $('#btnCam'),
+    btnTorch: $('#btnTorch'),
+    btnSound: $('#btnSound'),
+    manualForm: $('#manualForm'),
+    manualCode: $('#manualCode'),
+    lastScan: $('#lastScan'),
+    lsLabel: $('#lsLabel'),
+    lsTitle: $('#lsTitle'),
+    lsCode: $('#lsCode'),
+    btnRemoveLast: $('#btnRemoveLast'),
+    list: $('#list'),
+    empty: $('#empty'),
+    emptyTitle: $('#emptyTitle'),
+    emptyText: $('#emptyText'),
+    search: $('#search'),
+    sort: $('#sort'),
+    collName: $('#collName'),
+    countPill: $('#countPill'),
+    statTotal: $('#statTotal'),
+    statBooks: $('#statBooks'),
+    statToday: $('#statToday'),
+    toasts: $('#toasts'),
+  };
+
+  function uid() {
+    if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
+    return 'id-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 9);
+  }
+
+  function normalizeCode(input) {
+    return String(input || '').replace(/[^0-9Xx]/g, '').toUpperCase();
+  }
+
+  function isIsbn(code) {
+    return (code.length === 13 && /^97[89]/.test(code)) || code.length === 10;
+  }
+
+  // A QR code can hold a number, a link, or a piece of text.
+  // Work out what is worth looking up and what to show before that.
+  function parseQr(rawText) {
+    const raw = String(rawText || '').replace(/\r\n?/g, '\n').trim();
+    // Tolerate labels such as "ISBN 978-0-14-032872-1" on the code itself.
+    const labelled = raw.replace(/^\s*isbn(?:\s*-?\s*1[03])?\s*[:#]?\s*/i, '');
+    const compact = labelled.replace(/[\s-]/g, '');
+
+    if (compact && /^\d{8}$|^\d{10}$|^\d{12}$|^\d{13}$|^\d{14}$|^\d{9}X$/i.test(compact)) {
+      // Keep the bare number so the same item scanned as a barcode dedupes.
+      return { code: compact, title: '', url: null, lookupCode: compact };
+    }
+
+    let url = null;
+    if (/^https?:\/\/\S+$/i.test(raw)) url = raw;
+    else if (/^www\.\S+$/i.test(raw)) url = 'https://' + raw;
+
+    if (url) {
+      let title = url;
+      try {
+        title = new URL(url).hostname.replace(/^www\./, '');
+      } catch (err) { /* keep the raw text as the title */ }
+      return { code: url, title, url, lookupCode: isbnFromUrl(url) };
+    }
+
+    return { code: raw.slice(0, 512), title: raw.replace(/\s+/g, ' ').slice(0, 120), url: null, lookupCode: null };
+  }
+
+  function isbnFromUrl(url) {
+    let parsed;
+    try {
+      parsed = new URL(url);
+    } catch (err) {
+      return null;
+    }
+
+    const byPath = parsed.pathname.match(/\/isbn\/(\d{13}|\d{10})(?![0-9])/i);
+    if (byPath && isIsbn(byPath[1])) return byPath[1];
+
+    // Amazon product pages use the ISBN-10 as the ASIN for books.
+    const byAsin = parsed.pathname.match(/\/(?:dp|gp\/product)\/(\d{10})(?:[/?#]|$)/i);
+    if (byAsin) return byAsin[1];
+
+    const thirteen = parsed.pathname.match(/\d{13}/g) || [];
+    for (const candidate of thirteen) {
+      if (/^97[89]/.test(candidate)) return candidate;
+    }
+
+    const query = parsed.searchParams.get('isbn') || parsed.searchParams.get('isbn13');
+    if (query) {
+      const digits = normalizeCode(query);
+      if (isIsbn(digits)) return digits;
+    }
+    return null;
+  }
+
+  function yearOf(dateStr) {
+    const m = String(dateStr || '').match(/\b(1[5-9]\d{2}|20\d{2})\b/);
+    return m ? m[1] : '';
+  }
+
+  function timeAgo(ts) {
+    const diff = Date.now() - ts;
+    if (diff < 60e3) return 'just now';
+    if (diff < 3600e3) return Math.floor(diff / 60e3) + ' min ago';
+    if (diff < 86400e3) return Math.floor(diff / 3600e3) + ' h ago';
+    if (diff < 7 * 86400e3) return Math.floor(diff / 86400e3) + ' d ago';
+    return new Date(ts).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+  }
+
+  function isToday(ts) {
+    const d = new Date(ts);
+    const n = new Date();
+    return d.getFullYear() === n.getFullYear() && d.getMonth() === n.getMonth() && d.getDate() === n.getDate();
+  }
+
+  function displayTitle(item) {
+    if (item.title) return item.title;
+    if (item.status === 'loading') return 'Looking up…';
+    return item.code;
+  }
+
+  function bylineOf(item) {
+    let line = (item.authors || []).join(', ');
+    if (!line && item.brand) line = item.brand;
+    if (line.trim().toLowerCase() === displayTitle(item).trim().toLowerCase()) return '';
+    return line;
+  }
+
+  /* ------------------------------------------------------------------ *
+   * Feedback: sound, vibration, flashes, toasts
+   * ------------------------------------------------------------------ */
+
+  let audioCtx = null;
+
+  function beep(kind) {
+    if (!state.settings.sound) return;
+    try {
+      const Ctx = window.AudioContext || window.webkitAudioContext;
+      if (!Ctx) return;
+      audioCtx = audioCtx || new Ctx();
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+      const now = audioCtx.currentTime;
+      const notes = kind === 'ok'
+        ? [[880, 0, 0.055, 0.16], [1318, 0.075, 0.075, 0.13]]
+        : kind === 'warn'
+          ? [[560, 0, 0.13, 0.14]]
+          : [[220, 0, 0.2, 0.16]];
+      for (const [freq, at, dur, gain] of notes) {
+        const osc = audioCtx.createOscillator();
+        const g = audioCtx.createGain();
+        osc.type = kind === 'err' ? 'sawtooth' : 'sine';
+        osc.frequency.value = freq;
+        g.gain.setValueAtTime(0.0001, now + at);
+        g.gain.linearRampToValueAtTime(gain, now + at + 0.012);
+        g.gain.exponentialRampToValueAtTime(0.0001, now + at + dur);
+        osc.connect(g).connect(audioCtx.destination);
+        osc.start(now + at);
+        osc.stop(now + at + dur + 0.02);
+      }
+    } catch (err) { /* audio is a bonus, never a blocker */ }
+  }
+
+  function vibrate(kind) {
+    if (!navigator.vibrate) return;
+    try {
+      if (kind === 'ok') navigator.vibrate(24);
+      else if (kind === 'warn') navigator.vibrate([18, 50, 18]);
+      else navigator.vibrate([40, 60, 40]);
+    } catch (err) { /* ignore */ }
+  }
+
+  function flashViewport(kind) {
+    const cls = kind === 'ok' ? 'hit' : 'miss';
+    el.viewport.classList.add(cls);
+    setTimeout(() => el.viewport.classList.remove(cls), 420);
+  }
+
+  function pushToast(message, opts = {}) {
+    const { tone = 'info', action = null, duration = 3800 } = opts;
+    while (el.toasts.children.length >= 3) el.toasts.firstElementChild.remove();
+
+    const node = document.createElement('div');
+    node.className = 'toast ' + tone;
+    const text = document.createElement('span');
+    text.textContent = message;
+    node.appendChild(text);
+
+    let timer = null;
+    const close = () => {
+      if (!node.isConnected) return;
+      clearTimeout(timer);
+      node.classList.add('out');
+      setTimeout(() => node.remove(), 220);
+    };
+
+    if (action) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'toast-action';
+      btn.textContent = action.label;
+      btn.addEventListener('click', () => { close(); action.fn(); });
+      node.appendChild(btn);
+    }
+
+    el.toasts.appendChild(node);
+    if (duration > 0) timer = setTimeout(close, duration);
+    return { node, close };
+  }
+
+  /* ------------------------------------------------------------------ *
+   * Metadata lookups
+   * ------------------------------------------------------------------ */
+
+  async function fetchJson(url, timeout = 8000) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeout);
+    try {
+      const res = await fetch(url, { signal: controller.signal, headers: { Accept: 'application/json' } });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      return await res.json();
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  async function lookup(code) {
+    if (lookupCache.has(code)) return lookupCache.get(code);
+    if (pendingLookups.has(code)) return pendingLookups.get(code);
+
+    const task = (async () => {
+      let meta = null;
+      if (isIsbn(code)) {
+        try { meta = await fromOpenLibrary(code); } catch (err) { console.warn('Open Library failed', err); }
+        if (!meta) {
+          try { meta = await fromGoogleBooks(code); } catch (err) { console.warn('Google Books failed', err); }
+        }
+      } else {
+        try { meta = await fromOpenFacts(code); } catch (err) { console.warn('Open Facts failed', err); }
+      }
+      lookupCache.set(code, meta || null);
+      return meta || null;
+    })().finally(() => pendingLookups.delete(code));
+
+    pendingLookups.set(code, task);
+    return task;
+  }
+
+  async function fromOpenLibrary(isbn) {
+    // The edition record matches the physical book that was scanned (its
+    // publisher, date and page count), which the work-level search API does not.
+    try {
+      const data = await fetchJson(
+        'https://openlibrary.org/api/books?bibkeys=ISBN:' + encodeURIComponent(isbn) + '&format=json&jscmd=data',
+        9000
+      );
+      const b = data && data['ISBN:' + isbn];
+      if (b && b.title) {
+        const cover = b.cover || {};
+        return {
+          kind: 'book',
+          status: 'ok',
+          title: b.title,
+          subtitle: b.subtitle || '',
+          authors: Array.isArray(b.authors) ? b.authors.map((a) => a.name).filter(Boolean).slice(0, 4) : [],
+          publisher: (b.publishers && b.publishers[0] && b.publishers[0].name) || '',
+          year: yearOf(b.publish_date),
+          pages: b.number_of_pages || null,
+          subjects: Array.isArray(b.subjects) ? b.subjects.map((s) => s.name).filter(Boolean).slice(0, 10) : [],
+          cover: cover.medium || cover.small || 'https://covers.openlibrary.org/b/isbn/' + isbn + '-M.jpg?default=false',
+          coverLarge: cover.large || cover.medium || 'https://covers.openlibrary.org/b/isbn/' + isbn + '-L.jpg?default=false',
+          workKey: null,
+          editionKey: b.key || null,
+          source: 'openlibrary',
+          sourceUrl: b.url || 'https://openlibrary.org/isbn/' + isbn,
+        };
+      }
+    } catch (err) {
+      // fall through to the work-level search
+    }
+    return fromOpenLibrarySearch(isbn);
+  }
+
+  async function fromOpenLibrarySearch(isbn) {
+    const fields = 'title,subtitle,author_name,first_publish_year,publisher,number_of_pages_median,cover_i,subject,key';
+    const data = await fetchJson(
+      'https://openlibrary.org/search.json?isbn=' + encodeURIComponent(isbn) + '&limit=1&fields=' + fields,
+      9000
+    );
+    const doc = data && data.docs && data.docs[0];
+    if (!doc || !doc.title) return null;
+
+    const coverId = doc.cover_i;
+    return {
+      kind: 'book',
+      status: 'ok',
+      title: doc.title,
+      subtitle: doc.subtitle || '',
+      authors: Array.isArray(doc.author_name) ? doc.author_name.slice(0, 4) : [],
+      publisher: Array.isArray(doc.publisher) ? doc.publisher[0] : (doc.publisher || ''),
+      year: doc.first_publish_year ? String(doc.first_publish_year) : '',
+      pages: doc.number_of_pages_median || null,
+      subjects: Array.isArray(doc.subject) ? doc.subject.slice(0, 10) : [],
+      cover: coverId
+        ? 'https://covers.openlibrary.org/b/id/' + coverId + '-M.jpg'
+        : 'https://covers.openlibrary.org/b/isbn/' + isbn + '-M.jpg?default=false',
+      coverLarge: coverId
+        ? 'https://covers.openlibrary.org/b/id/' + coverId + '-L.jpg'
+        : 'https://covers.openlibrary.org/b/isbn/' + isbn + '-L.jpg?default=false',
+      workKey: doc.key || null,
+      editionKey: null,
+      source: 'openlibrary',
+      sourceUrl: 'https://openlibrary.org/isbn/' + isbn,
+    };
+  }
+
+  async function fromGoogleBooks(isbn) {
+    const data = await fetchJson(
+      'https://www.googleapis.com/books/v1/volumes?q=isbn:' + encodeURIComponent(isbn) + '&maxResults=1',
+      7000
+    );
+    const v = data && data.items && data.items[0] && data.items[0].volumeInfo;
+    if (!v || !v.title) return null;
+    const img = v.imageLinks || {};
+    const https = (u) => (u ? u.replace(/^http:/, 'https:') : null);
+    return {
+      kind: 'book',
+      status: 'ok',
+      title: v.title,
+      subtitle: v.subtitle || '',
+      authors: Array.isArray(v.authors) ? v.authors : [],
+      publisher: v.publisher || '',
+      year: yearOf(v.publishedDate),
+      pages: v.pageCount || null,
+      subjects: Array.isArray(v.categories) ? v.categories : [],
+      description: v.description || '',
+      cover: https(img.thumbnail || img.smallThumbnail),
+      coverLarge: https(img.large || img.thumbnail || img.smallThumbnail),
+      workKey: null,
+      source: 'googlebooks',
+      sourceUrl: v.infoLink || null,
+    };
+  }
+
+  async function fromOpenFacts(code) {
+    const dbs = [
+      ['openfoodfacts', 'https://world.openfoodfacts.org'],
+      ['openbeautyfacts', 'https://world.openbeautyfacts.org'],
+      ['openproductsfacts', 'https://world.openproductsfacts.org'],
+    ];
+    for (const [source, base] of dbs) {
+      try {
+        const data = await fetchJson(
+          base + '/api/v2/product/' + encodeURIComponent(code) + '.json' +
+          '?fields=product_name,generic_name,brands,categories,image_front_url,image_url,quantity',
+          6500
+        );
+        if (data && data.status === 1 && data.product) {
+          const p = data.product;
+          const title = (p.product_name || p.generic_name || p.brands || '').trim();
+          if (!title) continue;
+          return {
+            kind: 'product',
+            status: 'ok',
+            title,
+            subtitle: p.quantity || '',
+            authors: [],
+            brand: (p.brands || '').split(',')[0].trim(),
+            publisher: '',
+            year: '',
+            pages: null,
+            subjects: (p.categories || '').split(',').map((s) => s.trim()).filter(Boolean).slice(0, 8),
+            cover: p.image_front_url || p.image_url || null,
+            coverLarge: p.image_front_url || p.image_url || null,
+            workKey: null,
+            source,
+            sourceUrl: base + '/product/' + code,
+          };
+        }
+      } catch (err) { /* try the next database */ }
+    }
+    return null;
+  }
+
+  async function enrich(item, lookupCode = item.code) {
+    try {
+      const meta = await lookup(lookupCode);
+      if (cancelToken.has(item.id) || !locate(item.id)) return;
+      if (meta) {
+        Object.assign(item, meta, { status: 'ok' });
+      } else {
+        item.status = 'notfound';
+      }
+    } catch (err) {
+      if (cancelToken.has(item.id) || !locate(item.id)) return;
+      item.status = 'error';
+    }
+    save();
+    render();
+    if (item.status === 'ok') {
+      const card = document.querySelector('[data-id="' + cssEscape(item.id) + '"]');
+      if (card) card.classList.add('flash-ok');
+    }
+  }
+
+  function cssEscape(value) {
+    if (window.CSS && CSS.escape) return CSS.escape(value);
+    return String(value).replace(/[^a-zA-Z0-9_-]/g, '\\$&');
+  }
+
+  /* ------------------------------------------------------------------ *
+   * Add / remove
+   * ------------------------------------------------------------------ */
+
+  function addItem(rawCode, opts = {}) {
+    const { source = 'camera', format = null, force = false } = opts;
+    const isQr = format === 'QR_CODE';
+    const qr = isQr ? parseQr(rawCode) : null;
+    const code = isQr ? qr.code : normalizeCode(rawCode);
+
+    if (!code || (!isQr && code.length < 6)) {
+      pushToast(isQr ? 'That QR code is empty' : 'That does not look like a barcode', { tone: 'error' });
+      beep('err'); vibrate('err'); flashViewport('miss');
+      return null;
+    }
+
+    const existing = currentItems().find((i) => i.code === code);
+    if (existing && !force) {
+      pushToast('Already in “' + activeCollection().name + '”: ' + displayTitle(existing), {
+        tone: 'warn',
+        action: { label: 'Add a copy', fn: () => addItem(code, { source, format, force: true }) },
+      });
+      beep('warn'); vibrate('warn'); flashViewport('miss');
+      const card = document.querySelector('[data-id="' + cssEscape(existing.id) + '"]');
+      if (card) {
+        card.classList.remove('flash-warn');
+        void card.offsetWidth;
+        card.classList.add('flash-warn');
+        card.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      }
+      return null;
+    }
+
+    const item = {
+      id: uid(),
+      code,
+      format: format || null,
+      kind: isQr ? 'qr' : 'unknown',
+      status: isQr && !qr.lookupCode ? 'ok' : 'loading',
+      title: isQr ? qr.title : '',
+      subtitle: '',
+      authors: [],
+      brand: '',
+      publisher: '',
+      year: '',
+      pages: null,
+      subjects: [],
+      description: '',
+      cover: null,
+      coverLarge: null,
+      workKey: null,
+      editionKey: null,
+      source: isQr ? 'qr' : 'pending',
+      sourceUrl: isQr ? qr.url : null,
+      lookupCode: isQr ? qr.lookupCode : null,
+      notes: '',
+      scannedAt: Date.now(),
+      via: source,
+    };
+
+    if (el.search.value) el.search.value = '';
+    currentItems().unshift(item);
+    save();
+    render();
+    beep('ok'); vibrate('ok');
+    flashViewport('ok');
+
+    if (item.status === 'loading') enrich(item, item.lookupCode || item.code);
+    return item;
+  }
+
+  function removeItem(id, opts = {}) {
+    const { silent = false } = opts;
+    const found = locate(id);
+    if (!found) return null;
+
+    const { collection, index, item } = found;
+    collection.items.splice(index, 1);
+    cancelToken.add(item.id);
+    lastDeleted = { item, index, collectionId: collection.id };
+    save();
+    render();
+
+    if (!silent) {
+      if (undoToastClose) undoToastClose.close();
+      const t = pushToast('Removed “' + displayTitle(item) + '”', {
+        tone: 'neutral',
+        duration: 6000,
+        action: { label: 'Undo', fn: restoreLastDeleted },
+      });
+      undoToastClose = { close: t.close };
+      beep('ok');
+    }
+    return item;
+  }
+
+  function restoreLastDeleted() {
+    if (!lastDeleted) return;
+    const { item, index, collectionId } = lastDeleted;
+    const collection = state.collections.find((c) => c.id === collectionId) || activeCollection();
+    cancelToken.delete(item.id);
+    const at = Math.max(0, Math.min(index, collection.items.length));
+    collection.items.splice(at, 0, item);
+    lastDeleted = null;
+    save();
+    render();
+    pushToast('Restored “' + displayTitle(item) + '”', { tone: 'success', duration: 2600 });
+  }
+
+  function removeLastScan() {
+    const items = currentItems();
+    if (items.length === 0) {
+      pushToast('Nothing to remove yet', { tone: 'neutral', duration: 2000 });
+      return;
+    }
+    const last = items.reduce((a, b) => (b.scannedAt > a.scannedAt ? b : a));
+    removeItem(last.id);
+  }
+
+  function retryLookup(id) {
+    const found = locate(id);
+    if (!found) return;
+    const item = found.item;
+    cancelToken.delete(item.id);
+    lookupCache.delete(item.lookupCode || item.code);
+    item.status = 'loading';
+    render();
+    enrich(item, item.lookupCode || item.code);
+  }
+
+  function moveItem(id, targetCollectionId) {
+    const found = locate(id);
+    const target = state.collections.find((c) => c.id === targetCollectionId);
+    if (!found || !target || found.collection.id === target.id) return;
+    found.collection.items.splice(found.index, 1);
+    target.items.unshift(found.item);
+    save();
+    render();
+    pushToast('Moved to “' + target.name + '”', {
+      tone: 'success',
+      duration: 3200,
+      action: { label: 'Open', fn: () => switchCollection(target.id) },
+    });
+  }
+
+  /* ------------------------------------------------------------------ *
+   * Rendering
+   * ------------------------------------------------------------------ */
+
+  const ICON_BOOK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>';
+  const ICON_TAG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M20.6 13.4 12 22l-9-9V3h10l7.6 7.6a2 2 0 0 1 0 2.8z"/><circle cx="7.5" cy="7.5" r="1.3"/></svg>';
+  const ICON_QR = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3h-3zM20 14h1M14 20h3M20 18v3"/></svg>';
+  const ICON_TRASH = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18"/><path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>';
+  const ICON_INFO = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 16v-4M12 8h.01"/></svg>';
+  const ICON_REFRESH = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 3v6h-6"/></svg>';
+
+  function coverIcon(item) {
+    if (item.kind === 'product') return ICON_TAG;
+    if (item.kind === 'qr') return ICON_QR;
+    return ICON_BOOK;
+  }
+
+  function makeCover(item, cls) {
+    const wrap = document.createElement('div');
+    wrap.className = cls;
+
+    if (item.cover) {
+      const img = document.createElement('img');
+      img.src = item.cover;
+      img.alt = '';
+      img.loading = 'lazy';
+      img.decoding = 'async';
+      img.referrerPolicy = 'no-referrer';
+      img.addEventListener('error', () => {
+        img.remove();
+        wrap.classList.add('empty');
+        wrap.innerHTML = coverIcon(item);
+      }, { once: true });
+      wrap.appendChild(img);
+    } else {
+      wrap.classList.add('empty');
+      wrap.innerHTML = coverIcon(item);
+    }
+    return wrap;
+  }
+
+  function typeLabel(item) {
+    if (item.kind === 'book') return 'Book';
+    if (item.kind === 'product') return 'Product';
+    if (item.kind === 'qr') return 'QR';
+    return 'Unidentified';
+  }
+
+  function typeClass(item) {
+    if (item.kind === 'book') return 'book';
+    if (item.kind === 'product') return 'product';
+    if (item.kind === 'qr') return 'qr';
+    return 'warn';
+  }
+
+  function makeActionButton(act, icon, label, extraClass = '') {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'icon-btn ' + extraClass;
+    btn.dataset.act = act;
+    btn.title = label;
+    btn.setAttribute('aria-label', label);
+    btn.innerHTML = icon;
+    return btn;
+  }
+
+  function createCard(item) {
+    const card = document.createElement('article');
+    card.className = 'card';
+    card.dataset.id = item.id;
+    if (item.status === 'loading') card.classList.add('is-loading');
+
+    card.appendChild(makeCover(item, 'thumb'));
+
+    const body = document.createElement('div');
+    body.className = 'body';
+
+    const titleRow = document.createElement('div');
+    titleRow.className = 'title-row';
+
+    if (item.status === 'loading') {
+      const sk = document.createElement('div');
+      sk.style.cssText = 'flex:1;display:flex;flex-direction:column;gap:6px;padding-top:2px';
+      const a = document.createElement('span');
+      a.className = 'skeleton line';
+      const b = document.createElement('span');
+      b.className = 'skeleton line short';
+      sk.append(a, b);
+      titleRow.appendChild(sk);
+    } else {
+      const h3 = document.createElement('h3');
+      h3.textContent = displayTitle(item);
+      titleRow.appendChild(h3);
+    }
+
+    const badge = document.createElement('span');
+    badge.className = 'badge ' + (item.status === 'loading' ? '' : typeClass(item));
+    badge.textContent = item.status === 'loading' ? 'Reading' : typeLabel(item);
+    titleRow.appendChild(badge);
+
+    body.appendChild(titleRow);
+
+    if (item.status !== 'loading') {
+      const byLine = bylineOf(item);
+      if (byLine) {
+        const by = document.createElement('p');
+        by.className = 'by';
+        by.textContent = byLine;
+        body.appendChild(by);
+      }
+
+      const subParts = [];
+      if (item.publisher) subParts.push(item.publisher);
+      if (item.year) subParts.push(item.year);
+      if (item.pages) subParts.push(item.pages + ' pp');
+      if (item.subtitle) subParts.push(item.subtitle);
+      if (subParts.length) {
+        const sub = document.createElement('p');
+        sub.className = 'sub';
+        sub.textContent = subParts.join(' · ');
+        body.appendChild(sub);
+      }
+    }
+
+    const codeLine = document.createElement('p');
+    codeLine.className = 'code';
+    const codeSpan = document.createElement('span');
+    const isQrItem = item.kind === 'qr' || item.format === 'QR_CODE';
+    const printable = item.code.length > 64 ? item.code.slice(0, 63) + '…' : item.code;
+    const prefix = isQrItem && !isIsbn(item.code) ? 'QR · ' : (item.kind === 'book' || isIsbn(item.code) ? 'ISBN ' : '');
+    codeSpan.textContent = prefix + printable;
+    codeSpan.title = item.code;
+    codeLine.appendChild(codeSpan);
+    const dot = document.createElement('span');
+    dot.className = 'dot';
+    dot.textContent = '·';
+    const timeSpan = document.createElement('span');
+    timeSpan.textContent = timeAgo(item.scannedAt);
+    codeLine.append(dot, timeSpan);
+    body.appendChild(codeLine);
+
+    if (item.status === 'notfound') {
+      const note = document.createElement('p');
+      note.className = 'sub';
+      note.style.marginTop = '2px';
+      note.textContent = item.kind === 'qr' ? 'No extra details found for this code' : 'No metadata found for this barcode';
+      body.appendChild(note);
+    }
+    if (item.status === 'error') {
+      const note = document.createElement('p');
+      note.className = 'sub';
+      note.style.marginTop = '2px';
+      note.textContent = item.kind === 'qr' ? 'Details lookup failed' : 'Metadata lookup failed';
+      body.appendChild(note);
+    }
+    if (item.status === 'notfound' || item.status === 'error') {
+      const retry = document.createElement('button');
+      retry.type = 'button';
+      retry.className = 'retry-btn';
+      retry.dataset.act = 'retry';
+      retry.innerHTML = ICON_REFRESH + ' <span>Retry</span>';
+      body.appendChild(retry);
+    }
+
+    card.appendChild(body);
+
+    const actions = document.createElement('div');
+    actions.className = 'card-actions';
+    actions.appendChild(makeActionButton('details', ICON_INFO, 'Details'));
+    actions.appendChild(makeActionButton('delete', ICON_TRASH, 'Remove from collection', 'del'));
+    card.appendChild(actions);
+
+    return card;
+  }
+
+  function filteredItems() {
+    const q = el.search.value.trim().toLowerCase();
+    let list = currentItems().slice();
+
+    if (q) {
+      list = list.filter((item) => {
+        const haystack = [
+          item.title, item.subtitle, item.code,
+          (item.authors || []).join(' '), item.brand, item.publisher, item.year,
+        ].filter(Boolean).join(' ').toLowerCase();
+        return haystack.includes(q);
+      });
+    }
+
+    const sort = el.sort.value;
+    if (sort === 'recent') list.sort((a, b) => b.scannedAt - a.scannedAt);
+    else if (sort === 'oldest') list.sort((a, b) => a.scannedAt - b.scannedAt);
+    else if (sort === 'title') list.sort((a, b) => displayTitle(a).localeCompare(displayTitle(b), undefined, { sensitivity: 'base' }));
+
+    return list;
+  }
+
+  function render() {
+    const items = currentItems();
+    const collection = activeCollection();
+
+    // stats for the active collection
+    const total = items.length;
+    const books = items.filter((i) => i.kind === 'book').length;
+    const today = items.filter((i) => isToday(i.scannedAt)).length;
+    el.statTotal.textContent = total;
+    el.statBooks.textContent = books;
+    el.statToday.textContent = today;
+    el.countPill.textContent = total;
+    el.collName.textContent = collection.name;
+
+    renderLastScan();
+
+    const list = filteredItems();
+    const frag = document.createDocumentFragment();
+    for (const item of list) frag.appendChild(createCard(item));
+    el.list.replaceChildren(frag);
+
+    const searching = el.search.value.trim().length > 0;
+    el.empty.classList.toggle('hidden', list.length > 0);
+    if (list.length === 0) {
+      if (searching && total > 0) {
+        el.emptyTitle.textContent = 'No matches';
+        el.emptyText.textContent = 'Nothing in “' + collection.name + '” matches that search.';
+      } else {
+        el.emptyTitle.textContent = '“' + collection.name + '” is empty';
+        el.emptyText.textContent = "Point the camera at a barcode or QR code. It lands in this collection, and you can keep scanning the next one right away.";
+      }
+    }
+  }
+
+  function renderLastScan() {
+    const items = currentItems();
+    if (items.length === 0) {
+      el.lastScan.classList.add('hidden');
+      return;
+    }
+    const last = items.reduce((a, b) => (b.scannedAt > a.scannedAt ? b : a));
+    el.lastScan.classList.remove('hidden');
+    el.lastScan.classList.toggle('loading', last.status === 'loading');
+    el.lsLabel.textContent = last.status === 'loading' ? 'Reading code' : 'Last scan';
+    el.lsTitle.textContent = displayTitle(last);
+    const kindText = last.kind === 'book' ? ' · ISBN' : last.kind === 'product' ? ' · Product' : (last.kind === 'qr' || last.format === 'QR_CODE') ? ' · QR' : '';
+    el.lsCode.textContent = last.code + kindText;
+    el.btnRemoveLast.disabled = false;
+  }
+
+  /* ------------------------------------------------------------------ *
+   * Camera + ZXing
+   * ------------------------------------------------------------------ */
+
+  let reader = null;
+  let scannerControls = null;
+  let stream = null;
+  let camActive = false;
+  let camStarting = false;
+  let userPaused = false;
+  let resumeOnVisible = false;
+  let torchOn = false;
+  let lastCamError = null;
+
+  function setCamState(kind, title, message) {
+    el.camState.classList.toggle('hidden', kind === 'hidden');
+    el.camSpinner.classList.toggle('hidden', kind !== 'loading');
+    el.camRetry.classList.toggle('hidden', kind !== 'error');
+    if (title) el.camStateTitle.textContent = title;
+    if (message !== undefined) el.camStateMsg.textContent = message;
+  }
+
+  function camErrorMessage(err) {
+    const name = err && err.name;
+    if (name === 'NotAllowedError' || name === 'SecurityError') {
+      return 'Camera access is blocked. Allow it in the browser settings, then try again. You can still type a barcode below.';
+    }
+    if (name === 'NotFoundError' || name === 'OverconstrainedError') {
+      return 'No camera was found on this device. You can still type a barcode below.';
+    }
+    if (name === 'NotReadableError') {
+      return 'The camera is already in use by another app. Close it and try again.';
+    }
+    if (!window.isSecureContext) {
+      return 'The camera needs HTTPS (or localhost). Open this page over HTTPS to scan, or type barcodes below.';
+    }
+    return 'Could not start the camera. Check the browser permission and try again, or type a barcode below.';
+  }
+
+  async function startCamera() {
+    if (camActive || camStarting) return;
+    camStarting = true;
+    userPaused = false;
+    el.btnCam.disabled = true;
+    setCamState('loading', 'Starting camera…', 'Allow camera access to scan barcodes.');
+
+    try {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        const err = new Error('getUserMedia unsupported');
+        err.name = 'NotSupportedError';
+        throw err;
+      }
+
+      stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          facingMode: { ideal: 'environment' },
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+        },
+        audio: false,
+      });
+
+      el.video.srcObject = stream;
+      el.video.setAttribute('playsinline', '');
+      el.video.muted = true;
+      try { await el.video.play(); } catch (err) { /* autoplay policy */ }
+
+      updateTorchButton();
+
+      if (window.ZXing && ZXing.BrowserMultiFormatReader) {
+        const hints = new Map();
+        hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [
+          ZXing.BarcodeFormat.EAN_13,
+          ZXing.BarcodeFormat.EAN_8,
+          ZXing.BarcodeFormat.UPC_A,
+          ZXing.BarcodeFormat.UPC_E,
+          ZXing.BarcodeFormat.CODE_128,
+          ZXing.BarcodeFormat.ITF,
+          ZXing.BarcodeFormat.QR_CODE,
+        ]);
+        hints.set(ZXing.DecodeHintType.TRY_HARDER, false);
+        reader = new ZXing.BrowserMultiFormatReader(hints, 220);
+        scannerControls = await reader.decodeFromStream(stream, el.video, (result) => {
+          if (result) onDetected(result);
+        });
+        setCamState('hidden');
+        el.camHint.textContent = 'Hold a barcode or QR code inside the frame';
+      } else {
+        stopStream();
+        setCamState('error', 'Scanner library unavailable', 'Manual entry still works. Reload the page with an internet connection to enable the camera scanner.');
+        el.btnCamRetry.classList.add('hidden');
+        el.btnCam.textContent = 'Start camera';
+        el.btnCam.disabled = false;
+        return;
+      }
+
+      camActive = true;
+      el.btnCam.textContent = 'Pause camera';
+      el.btnCam.disabled = false;
+      lastCamError = null;
+    } catch (err) {
+      console.warn('Camera start failed', err);
+      lastCamError = err;
+      camActive = false;
+      stopStream();
+      setCamState('error', 'Camera unavailable', camErrorMessage(err));
+      el.btnCam.textContent = 'Start camera';
+      el.btnCam.disabled = false;
+    } finally {
+      camStarting = false;
+    }
+  }
+
+  function stopStream() {
+    if (stream) {
+      stream.getTracks().forEach((t) => { try { t.stop(); } catch (err) {} });
+      stream = null;
+    }
+    if (el.video.srcObject) el.video.srcObject = null;
+    torchOn = false;
+    el.btnTorch.classList.add('hidden');
+    el.btnTorch.setAttribute('aria-pressed', 'false');
+  }
+
+  function stopCamera() {
+    try { scannerControls && scannerControls.stop(); } catch (err) {}
+    try { reader && reader.reset(); } catch (err) {}
+    scannerControls = null;
+    reader = null;
+    stopStream();
+    camActive = false;
+    setCamState('paused', 'Camera paused', 'Press “Start camera” to keep scanning, or type a barcode below.');
+    el.btnCam.textContent = 'Start camera';
+    el.btnCam.disabled = false;
+  }
+
+  function updateTorchButton() {
+    try {
+      const track = stream && stream.getVideoTracks()[0];
+      const caps = track && track.getCapabilities ? track.getCapabilities() : {};
+      el.btnTorch.classList.toggle('hidden', !(caps && caps.torch));
+    } catch (err) {
+      el.btnTorch.classList.add('hidden');
+    }
+  }
+
+  function toggleTorch() {
+    const track = stream && stream.getVideoTracks()[0];
+    if (!track) return;
+    torchOn = !torchOn;
+    track.applyConstraints({ advanced: [{ torch: torchOn }] }).catch(() => { torchOn = false; });
+    el.btnTorch.setAttribute('aria-pressed', torchOn ? 'true' : 'false');
+    el.btnTorch.textContent = torchOn ? 'Torch on' : 'Torch';
+  }
+
+  function onDetected(result) {
+    const text = result && result.getText ? result.getText() : '';
+
+    let format = null;
+    try {
+      format = ZXing.BarcodeFormat[result.getBarcodeFormat()] || null;
+    } catch (err) { /* ignore */ }
+
+    const isQr = format === 'QR_CODE';
+    const key = isQr ? String(text || '').trim() : normalizeCode(text);
+    if (!key) return;
+    if (!isQr && key.length < 6) return;
+
+    const now = Date.now();
+    const existing = currentItems().find((i) => i.code === key);
+    // A code seen twice in a row is either the same item still in frame
+    // or one that is already in the collection: stay quiet for longer.
+    const cooldown = existing ? 15000 : 4000;
+    const lastSeen = recentScans.get(key) || 0;
+    if (now - lastSeen < cooldown) return;
+    recentScans.set(key, now);
+
+    const item = addItem(text, { source: 'camera', format });
+    if (item) {
+      el.camHint.textContent = 'Saved · keep scanning';
+      setTimeout(() => { if (el.camHint) el.camHint.textContent = 'Hold a barcode or QR code inside the frame'; }, 1600);
+    }
+  }
+
+  function toggleCamera() {
+    if (camActive) {
+      userPaused = true;
+      stopCamera();
+    } else {
+      startCamera();
+    }
+  }
+
+  /* ------------------------------------------------------------------ *
+   * Detail dialog
+   * ------------------------------------------------------------------ */
+
+  const detailDialog = $('#detailDialog');
+  const libraryDialog = $('#libraryDialog');
+  const confirmDialog = $('#confirmDialog');
+  let detailItemId = null;
+
+  const d = {
+    badge: $('#dBadge'),
+    cover: $('#dCover'),
+    title: $('#dTitle'),
+    by: $('#dBy'),
+    chips: $('#dChips'),
+    descSection: $('#dDescSection'),
+    desc: $('#dDesc'),
+    descMore: $('#dDescMore'),
+    facts: $('#dFacts'),
+    notes: $('#dNotes'),
+    saveNotes: $('#dSaveNotes'),
+    editForm: $('#dEditForm'),
+    eTitle: $('#eTitle'),
+    eAuthors: $('#eAuthors'),
+    ePublisher: $('#ePublisher'),
+    eYear: $('#eYear'),
+    eSave: $('#eSave'),
+    eCancel: $('#eCancel'),
+    btnEdit: $('#dEdit'),
+    link: $('#dLink'),
+    btnDelete: $('#dDelete'),
+    move: $('#dMove'),
+  };
+
+  function fact(dtText, ddText) {
+    const dt = document.createElement('dt');
+    dt.textContent = dtText;
+    const dd = document.createElement('dd');
+    dd.textContent = ddText;
+    return [dt, dd];
+  }
+
+  function openDetail(id) {
+    const found = locate(id);
+    if (!found) return;
+    const item = found.item;
+    detailItemId = id;
+
+    d.badge.className = 'badge ' + typeClass(item);
+    d.badge.textContent = typeLabel(item);
+
+    d.cover.replaceChildren();
+    d.cover.className = 'detail-cover';
+    if (item.coverLarge || item.cover) {
+      const img = document.createElement('img');
+      img.src = item.coverLarge || item.cover;
+      img.alt = '';
+      img.referrerPolicy = 'no-referrer';
+      img.addEventListener('error', () => {
+        d.cover.replaceChildren();
+        d.cover.classList.add('empty');
+        d.cover.innerHTML = coverIcon(item);
+      }, { once: true });
+      d.cover.appendChild(img);
+    } else {
+      d.cover.classList.add('empty');
+      d.cover.innerHTML = coverIcon(item);
+    }
+
+    d.title.textContent = displayTitle(item);
+    const byLine = bylineOf(item);
+    d.by.textContent = byLine || (item.status === 'notfound' ? 'No metadata found' : '');
+
+    d.chips.replaceChildren();
+    const chips = (item.subjects || []).slice(0, 6);
+    for (const c of chips) {
+      const chip = document.createElement('span');
+      chip.className = 'chip';
+      chip.textContent = c;
+      d.chips.appendChild(chip);
+    }
+
+    d.desc.textContent = item.description || (item.status === 'loading'
+      ? 'Looking up metadata…'
+      : item.kind === 'qr'
+        ? 'Scanned QR content. Add notes or fix the details to label it.'
+        : 'No description available for this barcode.');
+    d.desc.classList.add('clamped');
+    d.descMore.classList.add('hidden');
+    if ((item.description || '').length > 320) {
+      d.descMore.classList.remove('hidden');
+      d.descMore.textContent = 'Show more';
+    }
+
+    d.facts.replaceChildren();
+    const isQrItem = item.kind === 'qr' || item.format === 'QR_CODE';
+    const rows = [
+      [isQrItem ? 'Content' : 'Barcode', item.code],
+      ['Type', typeLabel(item)],
+    ];
+    if (item.publisher) rows.push(['Publisher', item.publisher]);
+    if (item.year) rows.push(['Published', item.year]);
+    if (item.pages) rows.push(['Pages', String(item.pages)]);
+    if (item.source && item.source !== 'pending') rows.push(['Source', sourceName(item.source)]);
+    rows.push(['Scanned', new Date(item.scannedAt).toLocaleString()]);
+    for (const [k, v] of rows) d.facts.append(...fact(k, v));
+
+    d.notes.value = item.notes || '';
+    d.editForm.classList.add('hidden');
+    d.btnEdit.textContent = 'Fix details';
+
+    d.move.replaceChildren();
+    for (const c of state.collections) {
+      const opt = document.createElement('option');
+      opt.value = c.id;
+      opt.textContent = c.name;
+      d.move.appendChild(opt);
+    }
+    d.move.value = found.collection.id;
+    d.move.disabled = state.collections.length < 2;
+
+    if (item.sourceUrl && /^https?:\/\//i.test(item.sourceUrl)) {
+      d.link.href = item.sourceUrl;
+      d.link.classList.remove('hidden');
+      d.link.textContent = item.source === 'openlibrary'
+        ? 'Open Library'
+        : item.source === 'googlebooks'
+          ? 'Google Books'
+          : item.source === 'qr'
+            ? 'Open link'
+            : 'Open database';
+    } else {
+      d.link.classList.add('hidden');
+    }
+
+    if (!detailDialog.open) detailDialog.showModal();
+
+    // Lazily fetch a description for Open Library books.
+    if (item.kind === 'book' && !item.description && (item.workKey || item.editionKey) && item.status === 'ok') {
+      loadDescription(item);
+    }
+  }
+
+  async function loadDescription(item) {
+    try {
+      if (!item.workKey && item.editionKey) {
+        const edition = await fetchJson('https://openlibrary.org' + item.editionKey + '.json', 7000);
+        const key = edition && edition.works && edition.works[0] && edition.works[0].key;
+        if (key) {
+          item.workKey = key;
+          save();
+        }
+      }
+      if (!item.workKey) return;
+
+      const data = await fetchJson('https://openlibrary.org' + item.workKey + '.json', 7000);
+      let desc = data && data.description;
+      if (desc && typeof desc === 'object') desc = desc.value;
+      if (typeof desc === 'string' && desc.trim()) {
+        item.description = desc.trim();
+        save();
+        if (detailItemId === item.id) {
+          d.desc.textContent = item.description;
+          if (item.description.length > 320) d.descMore.classList.remove('hidden');
+        }
+      }
+    } catch (err) { /* description is optional */ }
+  }
+
+  function sourceName(source) {
+    return {
+      openlibrary: 'Open Library',
+      googlebooks: 'Google Books',
+      openfoodfacts: 'Open Food Facts',
+      openbeautyfacts: 'Open Beauty Facts',
+      openproductsfacts: 'Open Products Facts',
+      qr: 'QR code',
+      pending: 'Pending',
+    }[source] || source;
+  }
+
+  function closeDetail() {
+    if (detailDialog.open) detailDialog.close();
+    detailItemId = null;
+  }
+
+  /* ------------------------------------------------------------------ *
+   * Library: export / import / clear
+   * ------------------------------------------------------------------ */
+
+  function download(filename, content, mime) {
+    const blob = new Blob([content], { type: mime });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
+  function stamp() {
+    const now = new Date();
+    const p = (n) => String(n).padStart(2, '0');
+    return now.getFullYear() + '-' + p(now.getMonth() + 1) + '-' + p(now.getDate());
+  }
+
+  function csvCell(value) {
+    const s = value == null ? '' : String(value);
+    return /[",\n\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+  }
+
+  function exportCsv() {
+    const rows = [];
+    for (const collection of state.collections) {
+      for (const item of collection.items) rows.push({ collection, item });
+    }
+    if (rows.length === 0) {
+      pushToast('Nothing to export yet', { tone: 'neutral' });
+      return;
+    }
+    rows.sort((a, b) => b.item.scannedAt - a.item.scannedAt);
+
+    const header = ['collection', 'title', 'authors', 'publisher', 'year', 'pages', 'barcode', 'type', 'source', 'notes', 'scanned_at'];
+    const lines = [header.join(',')];
+    for (const { collection, item } of rows) {
+      lines.push([
+        collection.name,
+        item.title || '',
+        (item.authors || []).join('; ') || item.brand || '',
+        item.publisher || '',
+        item.year || '',
+        item.pages || '',
+        item.code,
+        item.kind,
+        item.source,
+        item.notes || '',
+        new Date(item.scannedAt).toISOString(),
+      ].map(csvCell).join(','));
+    }
+    download('shelf-' + stamp() + '.csv', '\ufeff' + lines.join('\r\n'), 'text/csv;charset=utf-8');
+    pushToast('CSV downloaded', { tone: 'success' });
+  }
+
+  function exportJson() {
+    if (allItems().length === 0) {
+      pushToast('Nothing to export yet', { tone: 'neutral' });
+      return;
+    }
+    const payload = {
+      v: 2,
+      exportedAt: new Date().toISOString(),
+      collections: state.collections.map((c) => ({ name: c.name, items: c.items })),
+    };
+    download('shelf-' + stamp() + '.json', JSON.stringify(payload, null, 2), 'application/json');
+    pushToast('JSON backup downloaded', { tone: 'success' });
+  }
+
+  function normalizeImportedItem(raw) {
+    if (!isValidItem(raw)) return null;
+    return {
+      id: uid(),
+      code: raw.code,
+      format: raw.format || null,
+      kind: raw.kind || 'unknown',
+      status: raw.status === 'ok' || raw.status === 'notfound' || raw.status === 'error' ? raw.status : 'ok',
+      title: typeof raw.title === 'string' ? raw.title : '',
+      subtitle: typeof raw.subtitle === 'string' ? raw.subtitle : '',
+      authors: Array.isArray(raw.authors) ? raw.authors.filter((a) => typeof a === 'string') : [],
+      brand: typeof raw.brand === 'string' ? raw.brand : '',
+      publisher: typeof raw.publisher === 'string' ? raw.publisher : '',
+      year: typeof raw.year === 'string' ? raw.year : String(raw.year || ''),
+      pages: Number.isFinite(raw.pages) ? raw.pages : null,
+      subjects: Array.isArray(raw.subjects) ? raw.subjects : [],
+      description: typeof raw.description === 'string' ? raw.description : '',
+      cover: typeof raw.cover === 'string' ? raw.cover : null,
+      coverLarge: typeof raw.coverLarge === 'string' ? raw.coverLarge : null,
+      workKey: typeof raw.workKey === 'string' ? raw.workKey : null,
+      editionKey: typeof raw.editionKey === 'string' ? raw.editionKey : null,
+      lookupCode: typeof raw.lookupCode === 'string' ? raw.lookupCode : null,
+      source: typeof raw.source === 'string' ? raw.source : 'import',
+      sourceUrl: typeof raw.sourceUrl === 'string' ? raw.sourceUrl : null,
+      notes: typeof raw.notes === 'string' ? raw.notes : '',
+      scannedAt: Number.isFinite(raw.scannedAt) ? raw.scannedAt : Date.now(),
+      via: 'import',
+    };
+  }
+
+  async function importJson(file) {
+    try {
+      const text = await file.text();
+      const data = JSON.parse(text);
+      const groups = [];
+
+      if (Array.isArray(data)) {
+        groups.push({ collection: activeCollection(), items: data });
+      } else if (Array.isArray(data.collections)) {
+        for (const c of data.collections) {
+          if (!c || !Array.isArray(c.items)) continue;
+          const name = String(c.name || 'Imported').trim().slice(0, 40) || 'Imported';
+          let target = state.collections.find((x) => x.name.toLowerCase() === name.toLowerCase());
+          if (!target) {
+            target = newCollection(name);
+            state.collections.push(target);
+          }
+          groups.push({ collection: target, items: c.items });
+        }
+      } else if (Array.isArray(data.items)) {
+        // Single-collection backup from the first version of the app.
+        groups.push({ collection: activeCollection(), items: data.items });
+      } else {
+        throw new Error('No items to import');
+      }
+
+      let added = 0;
+      for (const group of groups) {
+        const codes = new Set(group.collection.items.map((i) => i.code));
+        for (const raw of group.items) {
+          const item = normalizeImportedItem(raw);
+          if (!item || codes.has(item.code)) continue;
+          group.collection.items.push(item);
+          codes.add(item.code);
+          added++;
+        }
+      }
+
+      save();
+      render();
+      pushToast(added
+        ? 'Imported ' + added + ' item' + (added === 1 ? '' : 's') + ' across ' + groups.length + ' collection' + (groups.length === 1 ? '' : 's')
+        : 'Nothing new to import', {
+        tone: added ? 'success' : 'neutral',
+        duration: added ? 4200 : 3000,
+      });
+    } catch (err) {
+      pushToast('Could not read that file', { tone: 'error', duration: 6000 });
+    }
+  }
+
+  function askConfirm(title, message, onYes, yesLabel = 'Confirm') {
+    $('#confirmTitle').textContent = title;
+    $('#confirmMsg').textContent = message;
+    const yes = $('#confirmYes');
+    yes.textContent = yesLabel;
+    const handler = () => {
+      yes.removeEventListener('click', handler);
+      confirmDialog.close();
+      onYes();
+    };
+    yes.addEventListener('click', handler);
+    confirmDialog.showModal();
+  }
+
+  function openLibrary() {
+    const items = allItems();
+    const total = items.length;
+    const books = items.filter((i) => i.kind === 'book').length;
+    const products = items.filter((i) => i.kind === 'product').length;
+    const unresolved = items.filter((i) => i.status === 'notfound' || i.status === 'error').length;
+    $('#libTotal').textContent = total;
+    $('#libBooks').textContent = books;
+    $('#libProducts').textContent = products;
+    $('#libUnknown').textContent = unresolved;
+    $('#btnClearAll').textContent = 'Clear “' + activeCollection().name + '”';
+    libraryDialog.showModal();
+  }
+
+  /* ------------------------------------------------------------------ *
+   * Collections
+   * ------------------------------------------------------------------ */
+
+  const collectionsDialog = $('#collectionsDialog');
+  const ICON_PENCIL = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>';
+  let renamingCollectionId = null;
+
+  function closeCollections() {
+    if (collectionsDialog.open) collectionsDialog.close();
+    renamingCollectionId = null;
+  }
+
+  function openCollections() {
+    renamingCollectionId = null;
+    renderCollections();
+    collectionsDialog.showModal();
+  }
+
+  function uniqueName(name, exceptId = null) {
+    const n = name.trim().toLowerCase();
+    return !state.collections.some((c) => c.id !== exceptId && c.name.toLowerCase() === n);
+  }
+
+  function switchCollection(id) {
+    if (!state.collections.some((c) => c.id === id)) return;
+    state.activeId = id;
+    if (el.search.value) el.search.value = '';
+    save();
+    render();
+    closeCollections();
+  }
+
+  function createCollection(rawName) {
+    const name = String(rawName || '').trim().slice(0, 40);
+    if (!name) {
+      pushToast('Give the collection a name first', { tone: 'warn' });
+      return null;
+    }
+    if (!uniqueName(name)) {
+      pushToast('A collection with that name already exists', { tone: 'warn' });
+      return null;
+    }
+    const collection = newCollection(name);
+    state.collections.push(collection);
+    state.activeId = collection.id;
+    save();
+    render();
+    return collection;
+  }
+
+  function startRename(id) {
+    renamingCollectionId = id;
+    renderCollections();
+    const input = document.querySelector('.col-row[data-id="' + cssEscape(id) + '"] .col-rename-input');
+    if (input) {
+      input.focus();
+      input.select();
+    }
+  }
+
+  function commitRename(id) {
+    if (renamingCollectionId !== id) return;
+    const input = document.querySelector('.col-row[data-id="' + cssEscape(id) + '"] .col-rename-input');
+    if (!input) return;
+    const collection = state.collections.find((c) => c.id === id);
+    if (!collection) return;
+
+    const name = input.value.trim().slice(0, 40);
+    if (!name) {
+      renamingCollectionId = null;
+      renderCollections();
+      return;
+    }
+    if (!uniqueName(name, id)) {
+      pushToast('A collection with that name already exists', { tone: 'warn' });
+      input.focus();
+      return;
+    }
+    if (name !== collection.name) {
+      collection.name = name;
+      save();
+      render();
+    }
+    renamingCollectionId = null;
+    renderCollections();
+  }
+
+  function deleteCollection(id) {
+    const collection = state.collections.find((c) => c.id === id);
+    if (!collection) return;
+    if (state.collections.length <= 1) {
+      pushToast('Keep at least one collection', { tone: 'warn' });
+      return;
+    }
+    const count = collection.items.length;
+    askConfirm(
+      'Delete “' + collection.name + '”?',
+      count
+        ? 'Its ' + count + ' saved item' + (count === 1 ? '' : 's') + ' are deleted with it. This cannot be undone.'
+        : 'The collection is empty, so only the collection is removed.',
+      () => {
+        const index = state.collections.findIndex((c) => c.id === id);
+        if (index < 0) return;
+        state.collections.splice(index, 1);
+        if (state.activeId === id) {
+          const next = state.collections[Math.min(index, state.collections.length - 1)];
+          state.activeId = next ? next.id : null;
+        }
+        save();
+        render();
+        renderCollections();
+        pushToast('Collection deleted', { tone: 'neutral' });
+      },
+      'Delete collection'
+    );
+  }
+
+  function renderCollections() {
+    const listEl = $('#collectionList');
+    const frag = document.createDocumentFragment();
+
+    for (const collection of state.collections) {
+      const row = document.createElement('div');
+      row.className = 'col-row' + (collection.id === state.activeId ? ' active' : '');
+      row.dataset.id = collection.id;
+
+      if (renamingCollectionId === collection.id) {
+        const input = document.createElement('input');
+        input.className = 'col-rename-input';
+        input.value = collection.name;
+        input.maxLength = 40;
+        input.setAttribute('aria-label', 'Collection name');
+        input.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            commitRename(collection.id);
+          } else if (e.key === 'Escape') {
+            e.preventDefault();
+            e.stopPropagation();
+            renamingCollectionId = null;
+            renderCollections();
+          }
+        });
+        input.addEventListener('blur', () => commitRename(collection.id));
+        row.appendChild(input);
+        frag.appendChild(row);
+        continue;
+      }
+
+      const pick = document.createElement('button');
+      pick.type = 'button';
+      pick.className = 'col-pick';
+      pick.dataset.act = 'pick';
+
+      const name = document.createElement('span');
+      name.className = 'col-name';
+      name.textContent = collection.name;
+      pick.appendChild(name);
+
+      const count = document.createElement('span');
+      count.className = 'count-pill';
+      count.textContent = collection.items.length;
+      pick.appendChild(count);
+
+      if (collection.id === state.activeId) {
+        const check = document.createElement('span');
+        check.className = 'check';
+        check.setAttribute('aria-label', 'Active collection');
+        check.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 5 5L20 7"/></svg>';
+        pick.appendChild(check);
+      }
+      row.appendChild(pick);
+
+      for (const [act, icon, label] of [
+        ['rename', ICON_PENCIL, 'Rename “' + collection.name + '”'],
+        ['delete', ICON_TRASH, 'Delete “' + collection.name + '”'],
+      ]) {
+        if (act === 'delete' && state.collections.length <= 1) continue;
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'icon-btn';
+        btn.dataset.act = act;
+        btn.title = label;
+        btn.setAttribute('aria-label', label);
+        btn.innerHTML = icon;
+        row.appendChild(btn);
+      }
+
+      frag.appendChild(row);
+    }
+
+    listEl.replaceChildren(frag);
+  }
+
+  /* ------------------------------------------------------------------ *
+   * Event wiring
+   * ------------------------------------------------------------------ */
+
+  el.btnCam.addEventListener('click', toggleCamera);
+  el.camRetry.addEventListener('click', startCamera);
+  el.btnTorch.addEventListener('click', toggleTorch);
+
+  el.btnSound.addEventListener('click', () => {
+    state.settings.sound = !state.settings.sound;
+    el.btnSound.setAttribute('aria-pressed', state.settings.sound ? 'true' : 'false');
+    el.btnSound.textContent = state.settings.sound ? 'Sound on' : 'Sound off';
+    save();
+    if (state.settings.sound) beep('ok');
+  });
+
+  el.manualForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const code = normalizeCode(el.manualCode.value);
+    if (!code) return;
+    addItem(code, { source: 'manual' });
+    el.manualCode.value = '';
+    el.manualCode.focus();
+  });
+
+  $('#manualToggle').addEventListener('click', () => {
+    const open = el.manualForm.classList.toggle('open');
+    $('#manualToggle').setAttribute('aria-expanded', open ? 'true' : 'false');
+    $('#manualToggleLabel').textContent = open ? 'Hide' : 'Type code';
+    if (open) el.manualCode.focus();
+  });
+
+  el.btnRemoveLast.addEventListener('click', removeLastScan);
+
+  el.search.addEventListener('input', render);
+  el.sort.addEventListener('change', render);
+
+  // Collections
+  $('#collPicker').addEventListener('click', openCollections);
+  $('#colClose').addEventListener('click', closeCollections);
+  collectionsDialog.addEventListener('click', (e) => {
+    if (e.target === collectionsDialog) closeCollections();
+  });
+  $('#collectionList').addEventListener('click', (e) => {
+    const btn = e.target.closest('button');
+    if (!btn) return;
+    const row = btn.closest('.col-row');
+    if (!row) return;
+    const id = row.dataset.id;
+    if (btn.dataset.act === 'pick') switchCollection(id);
+    else if (btn.dataset.act === 'rename') startRename(id);
+    else if (btn.dataset.act === 'delete') deleteCollection(id);
+  });
+  $('#newCollectionForm').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const input = $('#newCollectionName');
+    const collection = createCollection(input.value);
+    if (collection) {
+      input.value = '';
+      renderCollections();
+      pushToast('Created “' + collection.name + '”', { tone: 'success', duration: 2400 });
+    }
+  });
+
+  // List interactions (event delegation)
+  el.list.addEventListener('click', (e) => {
+    const btn = e.target.closest('button[data-act]');
+    const card = e.target.closest('.card');
+    if (!card) return;
+    const id = card.dataset.id;
+
+    if (btn) {
+      const act = btn.dataset.act;
+      if (act === 'delete') removeItem(id);
+      else if (act === 'details') openDetail(id);
+      else if (act === 'retry') retryLookup(id);
+      return;
+    }
+    openDetail(id);
+  });
+
+  // Detail dialog
+  $('#dClose').addEventListener('click', closeDetail);
+  detailDialog.addEventListener('click', (e) => {
+    if (e.target === detailDialog) closeDetail();
+  });
+
+  d.saveNotes.addEventListener('click', () => {
+    const item = (locate(detailItemId) || {}).item;
+    if (!item) return;
+    item.notes = d.notes.value;
+    save();
+    pushToast('Notes saved', { tone: 'success', duration: 1800 });
+  });
+
+  d.btnEdit.addEventListener('click', () => {
+    const item = (locate(detailItemId) || {}).item;
+    if (!item) return;
+    const showing = !d.editForm.classList.contains('hidden');
+    if (showing) {
+      d.editForm.classList.add('hidden');
+      d.btnEdit.textContent = 'Fix details';
+      return;
+    }
+    d.eTitle.value = item.title || '';
+    d.eAuthors.value = (item.authors || []).join(', ') || item.brand || '';
+    d.ePublisher.value = item.publisher || '';
+    d.eYear.value = item.year || '';
+    d.editForm.classList.remove('hidden');
+    d.btnEdit.textContent = 'Hide fixer';
+    d.eTitle.focus();
+  });
+
+  d.eCancel.addEventListener('click', () => {
+    d.editForm.classList.add('hidden');
+    d.btnEdit.textContent = 'Fix details';
+  });
+
+  d.eSave.addEventListener('click', () => {
+    const item = (locate(detailItemId) || {}).item;
+    if (!item) return;
+    item.title = d.eTitle.value.trim();
+    const authors = d.eAuthors.value.split(',').map((s) => s.trim()).filter(Boolean);
+    if (item.kind === 'product') item.brand = authors.join(', ');
+    else item.authors = authors;
+    item.publisher = d.ePublisher.value.trim();
+    item.year = d.eYear.value.trim();
+    if (!item.title) item.title = item.code;
+    if (item.status !== 'ok') item.status = 'ok';
+    if (item.kind === 'unknown') item.kind = isIsbn(item.code) ? 'book' : 'product';
+    item.edited = true;
+    save();
+    render();
+    d.editForm.classList.add('hidden');
+    d.btnEdit.textContent = 'Fix details';
+    openDetail(item.id);
+    pushToast('Details updated', { tone: 'success', duration: 1800 });
+  });
+
+  d.descMore.addEventListener('click', () => {
+    const clamped = d.desc.classList.toggle('clamped');
+    d.descMore.textContent = clamped ? 'Show more' : 'Show less';
+  });
+
+  d.move.addEventListener('change', () => {
+    if (!detailItemId) return;
+    const id = detailItemId;
+    const target = d.move.value;
+    closeDetail();
+    moveItem(id, target);
+  });
+
+  d.btnDelete.addEventListener('click', () => {
+    if (!detailItemId) return;
+    const item = (locate(detailItemId) || {}).item;
+    if (!item) return;
+    const id = item.id;
+    closeDetail();
+    removeItem(id);
+  });
+
+  // Library dialog
+  $('#btnLibrary').addEventListener('click', openLibrary);
+  $('#libClose').addEventListener('click', () => libraryDialog.close());
+  libraryDialog.addEventListener('click', (e) => {
+    if (e.target === libraryDialog) libraryDialog.close();
+  });
+  $('#btnExportCsv').addEventListener('click', exportCsv);
+  $('#btnExportJson').addEventListener('click', exportJson);
+  $('#importFile').addEventListener('change', (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (file) importJson(file);
+    e.target.value = '';
+  });
+  $('#btnClearAll').addEventListener('click', () => {
+    const collection = activeCollection();
+    if (collection.items.length === 0) return;
+    const count = collection.items.length;
+    libraryDialog.close();
+    askConfirm(
+      'Clear “' + collection.name + '”?',
+      'This removes all ' + count + ' saved item' + (count === 1 ? '' : 's') + ' in this collection. The collection itself and your other collections stay. Export a backup first if you are not sure.',
+      () => {
+        collection.items = [];
+        lastDeleted = null;
+        save();
+        render();
+        pushToast('“' + collection.name + '” cleared', { tone: 'neutral' });
+      },
+      'Clear collection'
+    );
+  });
+
+  $('#confirmNo').addEventListener('click', () => confirmDialog.close());
+  confirmDialog.addEventListener('click', (e) => {
+    if (e.target === confirmDialog) confirmDialog.close();
+  });
+
+  // Keyboard shortcuts for fast correction
+  document.addEventListener('keydown', (e) => {
+    const active = document.activeElement;
+    const typing = active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.tagName === 'SELECT' || active.isContentEditable);
+    if (typing) return;
+
+    if (e.key === 'Backspace' || e.key === 'Delete') {
+      e.preventDefault();
+      removeLastScan();
+    } else if (e.key === 'z' || e.key === 'Z') {
+      if (lastDeleted) {
+        e.preventDefault();
+        restoreLastDeleted();
+      }
+    }
+  });
+
+  // Release the camera when the tab is hidden, bring it back on return.
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+      if (camActive) {
+        resumeOnVisible = true;
+        stopCamera();
+      }
+    } else if (resumeOnVisible && !userPaused && !camActive && !camStarting) {
+      resumeOnVisible = false;
+      startCamera();
+    }
+  });
+
+  // Keep multiple tabs in sync.
+  window.addEventListener('storage', (e) => {
+    if (e.key === STORE_KEY) {
+      load();
+      render();
+    }
+  });
+
+  /* ------------------------------------------------------------------ *
+   * Boot
+   * ------------------------------------------------------------------ */
+
+  load();
+  el.btnSound.setAttribute('aria-pressed', state.settings.sound ? 'true' : 'false');
+  el.btnSound.textContent = state.settings.sound ? 'Sound on' : 'Sound off';
+  render();
+
+  // A scan interrupted by a reload never finished its lookup.
+  for (const item of allItems().filter((i) => i.status === 'loading')) enrich(item);
+
+  // Exposed for debugging and scripted testing.
+  window.__shelf = {
+    scan: (code, opts) => addItem(code, opts),
+    items: () => currentItems(),
+    collections: () => state.collections.map((c) => ({ id: c.id, name: c.name, count: c.items.length })),
+    active: () => activeCollection().id,
+    switchTo: (id) => switchCollection(id),
+    create: (name) => createCollection(name),
+    removeLast: removeLastScan,
+    clear: () => { activeCollection().items = []; save(); render(); },
+  };
+
+  startCamera();
+})();
+</script>
+</body>
+</html>
